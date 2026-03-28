@@ -41,4 +41,3 @@ krews:
     repository:
       owner: arush-sal
       name: krew-index
-    skip_upload: true
