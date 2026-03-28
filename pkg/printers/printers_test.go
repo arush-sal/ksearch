@@ -2,8 +2,6 @@ package printers
 
 import (
 	"bytes"
-	"io"
-	"os"
 	"strings"
 	"testing"
 
@@ -11,39 +9,6 @@ import (
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
-
-func captureOutput(t *testing.T, f func()) string {
-	t.Helper()
-
-	reader, writer, err := os.Pipe()
-	if err != nil {
-		t.Fatalf("create pipe: %v", err)
-	}
-
-	originalStdout := os.Stdout
-	os.Stdout = writer
-
-	defer func() {
-		os.Stdout = originalStdout
-	}()
-
-	f()
-
-	if err := writer.Close(); err != nil {
-		t.Fatalf("close writer: %v", err)
-	}
-
-	var buffer bytes.Buffer
-	if _, err := io.Copy(&buffer, reader); err != nil {
-		t.Fatalf("copy captured output: %v", err)
-	}
-
-	if err := reader.Close(); err != nil {
-		t.Fatalf("close reader: %v", err)
-	}
-
-	return buffer.String()
-}
 
 func TestPrintSecrets_NoSensitiveDataInOutput(t *testing.T) {
 	list := &v1.SecretList{
@@ -57,20 +22,19 @@ func TestPrintSecrets_NoSensitiveDataInOutput(t *testing.T) {
 		}},
 	}
 
-	output := captureOutput(t, func() {
-		Printer(list, "")
-	})
+	var output bytes.Buffer
+	Printer(&output, list, "")
 
-	if strings.Contains(output, "super-secret-value") {
-		t.Fatalf("secret value leaked in output: %q", output)
+	if strings.Contains(output.String(), "super-secret-value") {
+		t.Fatalf("secret value leaked in output: %q", output.String())
 	}
 
-	if strings.Contains(output, "my-api-token") {
-		t.Fatalf("token leaked in output: %q", output)
+	if strings.Contains(output.String(), "my-api-token") {
+		t.Fatalf("token leaked in output: %q", output.String())
 	}
 
-	if !strings.Contains(output, "\t2\t") && !strings.Contains(output, " 2 ") && !strings.Contains(output, "2") {
-		t.Fatalf("expected data count in output, got %q", output)
+	if !strings.Contains(output.String(), "2") {
+		t.Fatalf("expected data count in output, got %q", output.String())
 	}
 }
 
@@ -88,12 +52,11 @@ func TestPrinter_EmptyList(t *testing.T) {
 	for _, testCase := range testCases {
 		testCase := testCase
 		t.Run(testCase.name, func(t *testing.T) {
-			output := captureOutput(t, func() {
-				Printer(testCase.resource, "")
-			})
+			var output bytes.Buffer
+			Printer(&output, testCase.resource, "")
 
-			if output != "" {
-				t.Fatalf("expected no output, got %q", output)
+			if output.String() != "" {
+				t.Fatalf("expected no output, got %q", output.String())
 			}
 		})
 	}
@@ -107,15 +70,51 @@ func TestPrinter_PatternFilter(t *testing.T) {
 		},
 	}
 
-	output := captureOutput(t, func() {
-		Printer(list, "nginx")
-	})
+	var output bytes.Buffer
+	Printer(&output, list, "nginx")
 
-	if !strings.Contains(output, "nginx-config") {
-		t.Fatalf("expected matching configmap in output, got %q", output)
+	if !strings.Contains(output.String(), "nginx-config") {
+		t.Fatalf("expected matching configmap in output, got %q", output.String())
 	}
 
-	if strings.Contains(output, "redis-config") {
-		t.Fatalf("expected non-matching configmap to be filtered out, got %q", output)
+	if strings.Contains(output.String(), "redis-config") {
+		t.Fatalf("expected non-matching configmap to be filtered out, got %q", output.String())
+	}
+}
+
+func TestMatchesPattern(t *testing.T) {
+	testCases := []struct {
+		name    string
+		value   string
+		pattern string
+		match   bool
+	}{
+		{
+			name:    "empty pattern matches everything",
+			value:   "configmap",
+			pattern: "",
+			match:   true,
+		},
+		{
+			name:    "substring matches",
+			value:   "nginx-config",
+			pattern: "nginx",
+			match:   true,
+		},
+		{
+			name:    "non matching pattern returns false",
+			value:   "redis-config",
+			pattern: "nginx",
+			match:   false,
+		},
+	}
+
+	for _, testCase := range testCases {
+		testCase := testCase
+		t.Run(testCase.name, func(t *testing.T) {
+			if got := matchesPattern(testCase.value, testCase.pattern); got != testCase.match {
+				t.Fatalf("matchesPattern(%q, %q) = %v, want %v", testCase.value, testCase.pattern, got, testCase.match)
+			}
+		})
 	}
 }
