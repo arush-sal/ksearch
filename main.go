@@ -1,6 +1,6 @@
 package main
 
-import "github.com/infracloudio/ksearch/cmd"
+import "github.com/arush-sal/ksearch/cmd"
 
 func main() {
 	cmd.Execute()

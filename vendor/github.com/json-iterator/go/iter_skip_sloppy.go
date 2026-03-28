@@ -1,4 +1,5 @@
-//+build jsoniter_sloppy
+//go:build jsoniter_sloppy
+// +build jsoniter_sloppy
 
 package jsoniter
 
@@ -22,6 +23,9 @@ func (iter *Iterator) skipNumber() {
 
 func (iter *Iterator) skipArray() {
 	level := 1
+	if !iter.incrementDepth() {
+		return
+	}
 	for {
 		for i := iter.head; i < iter.tail; i++ {
 			switch iter.buf[i] {
@@ -31,8 +35,14 @@ func (iter *Iterator) skipArray() {
 				i = iter.head - 1 // it will be i++ soon
 			case '[': // If open symbol, increase level
 				level++
+				if !iter.incrementDepth() {
+					return
+				}
 			case ']': // If close symbol, increase level
 				level--
+				if !iter.decrementDepth() {
+					return
+				}
 
 				// If we have returned to the original level, we're done
 				if level == 0 {
@@ -50,6 +60,10 @@ func (iter *Iterator) skipArray() {
 
 func (iter *Iterator) skipObject() {
 	level := 1
+	if !iter.incrementDepth() {
+		return
+	}
+
 	for {
 		for i := iter.head; i < iter.tail; i++ {
 			switch iter.buf[i] {
@@ -59,8 +73,14 @@ func (iter *Iterator) skipObject() {
 				i = iter.head - 1 // it will be i++ soon
 			case '{': // If open symbol, increase level
 				level++
+				if !iter.incrementDepth() {
+					return
+				}
 			case '}': // If close symbol, increase level
 				level--
+				if !iter.decrementDepth() {
+					return
+				}
 
 				// If we have returned to the original level, we're done
 				if level == 0 {
