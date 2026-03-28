@@ -29,19 +29,23 @@ var resources = []string{
 	"StatefulSets",
 }
 
+func configuredResources(kinds string) []string {
+	if kinds == "" {
+		return append([]string(nil), resources...)
+	}
+
+	return strings.Split(kinds, ",")
+}
+
 // Getter the
 // This should be go routine ready. Such that getter can be called via goroutines and over a channel the value can be passed to a switch type through with the respective printer can be called.
-func Getter(namespace string, clientset *kubernetes.Clientset, kinds string, c chan interface{}) {
+func Getter(namespace string, clientset kubernetes.Interface, kinds string, c chan interface{}) {
 	defer close(c)
 	ctx := context.Background()
 	var err error
 	var list interface{}
 
-	if kinds != "" {
-		resources = strings.Split(kinds, ",")
-	}
-
-	for _, resource := range resources {
+	for _, resource := range configuredResources(kinds) {
 		switch resource {
 		case "Pods":
 			list, err = clientset.CoreV1().Pods(namespace).List(ctx, metav1.ListOptions{})
