@@ -2,7 +2,7 @@ package printers
 
 import (
 	"fmt"
-	"os"
+	"io"
 	"strings"
 	"text/tabwriter"
 
@@ -11,349 +11,291 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 )
 
-func printPodDetails(pods *v1.PodList, resName string) {
+func matchesPattern(name, pattern string) bool {
+	return pattern == "" || strings.Contains(name, pattern)
+}
+
+func printPodDetails(w io.Writer, pods *v1.PodList, pattern string) {
 	if len(pods.Items) > 0 {
-		fmt.Printf("\nPods\n----\n")
-		w := tabwriter.NewWriter(os.Stdout, 0, 0, 1, ' ', 0)
-		fmt.Fprintf(w, "%v\t%v\t%v\t%v\n", "NAME", "READY", "STATUS", "RESTARTS")
+		fmt.Fprintf(w, "\nPods\n----\n")
+		tabWriter := tabwriter.NewWriter(w, 0, 0, 1, ' ', 0)
+		fmt.Fprintf(tabWriter, "%v\t%v\t%v\t%v\n", "NAME", "READY", "STATUS", "RESTARTS")
 
 		for _, pod := range pods.Items {
-			if resName != "" {
-				if strings.Contains(pod.Name, resName) {
-					fmt.Fprintf(w, "%v\t%v\t%v\t%v\n", pod.Name, "", pod.Status.Phase, "")
-				}
-			} else {
-				fmt.Fprintf(w, "%v\t%v\t%v\t%v\n", pod.Name, "", pod.Status.Phase, "")
+			if !matchesPattern(pod.Name, pattern) {
+				continue
 			}
+
+			fmt.Fprintf(tabWriter, "%v\t%v\t%v\t%v\n", pod.Name, "", pod.Status.Phase, "")
 		}
-		w.Flush()
+		tabWriter.Flush()
 	}
 }
-func printPodTemplates(podTemplates *v1.PodTemplateList, resName string) {
+func printPodTemplates(w io.Writer, podTemplates *v1.PodTemplateList, pattern string) {
 	if len(podTemplates.Items) > 0 {
-		fmt.Printf("\nPodTemplates\n--------------\n")
-		w := tabwriter.NewWriter(os.Stdout, 0, 0, 1, ' ', 0)
-		fmt.Fprintf(w, "%v\n", "NAME")
+		fmt.Fprintf(w, "\nPodTemplates\n--------------\n")
+		tabWriter := tabwriter.NewWriter(w, 0, 0, 1, ' ', 0)
+		fmt.Fprintf(tabWriter, "%v\n", "NAME")
 		for _, podTemplate := range podTemplates.Items {
-			if resName != "" {
-				if strings.Contains(podTemplate.Name, resName) {
-					fmt.Fprintf(w, "%v\n", podTemplate.Name)
-				}
-			} else {
-				fmt.Fprintf(w, "%v\n", podTemplate.Name)
+			if !matchesPattern(podTemplate.Name, pattern) {
+				continue
 			}
+			fmt.Fprintf(tabWriter, "%v\n", podTemplate.Name)
 		}
-		w.Flush()
+		tabWriter.Flush()
 	}
 }
-func printConfigMaps(cms *v1.ConfigMapList, resName string) {
+func printConfigMaps(w io.Writer, cms *v1.ConfigMapList, pattern string) {
 	if len(cms.Items) > 0 {
-		fmt.Printf("\nConfigMaps\n--------------\n")
-		w := tabwriter.NewWriter(os.Stdout, 0, 0, 1, ' ', 0)
-		fmt.Fprintf(w, "%v\t%v\t%v\n", "NAME", "DATA", "AGE")
+		fmt.Fprintf(w, "\nConfigMaps\n--------------\n")
+		tabWriter := tabwriter.NewWriter(w, 0, 0, 1, ' ', 0)
+		fmt.Fprintf(tabWriter, "%v\t%v\t%v\n", "NAME", "DATA", "AGE")
 		for _, configMap := range cms.Items {
-			if resName != "" {
-				if strings.Contains(configMap.Name, resName) {
-					fmt.Fprintf(w, "%v\t%v\t%v\n", configMap.Name, len(configMap.Data), "")
-				}
-			} else {
-				fmt.Fprintf(w, "%v\t%v\t%v\n", configMap.Name, len(configMap.Data), "")
+			if !matchesPattern(configMap.Name, pattern) {
+				continue
 			}
+			fmt.Fprintf(tabWriter, "%v\t%v\t%v\n", configMap.Name, len(configMap.Data), "")
 		}
-		w.Flush()
+		tabWriter.Flush()
 	}
 }
-func printEndpoints(endPoints *v1.EndpointsList, resName string) {
+func printEndpoints(w io.Writer, endPoints *v1.EndpointsList, pattern string) {
 	if len(endPoints.Items) > 0 {
-		fmt.Printf("\nEndpoints\n--------------\n")
-		w := tabwriter.NewWriter(os.Stdout, 0, 0, 1, ' ', 0)
-		fmt.Fprintf(w, "%v\t%v\t%v\n", "NAME", "ENDPOINTS", "AGE")
+		fmt.Fprintf(w, "\nEndpoints\n--------------\n")
+		tabWriter := tabwriter.NewWriter(w, 0, 0, 1, ' ', 0)
+		fmt.Fprintf(tabWriter, "%v\t%v\t%v\n", "NAME", "ENDPOINTS", "AGE")
 		for _, endpoint := range endPoints.Items {
-			if resName != "" {
-				if strings.Contains(endpoint.Name, resName) {
-					fmt.Fprintf(w, "%v\t%v\t%v\n", endpoint.Name, "", "")
-				}
-			} else {
-				fmt.Fprintf(w, "%v\t%v\t%v\n", endpoint.Name, "", "")
+			if !matchesPattern(endpoint.Name, pattern) {
+				continue
 			}
+			fmt.Fprintf(tabWriter, "%v\t%v\t%v\n", endpoint.Name, "", "")
 		}
-		w.Flush()
+		tabWriter.Flush()
 	}
 }
-func printEvents(events *v1.EventList, resName string) {
+func printEvents(w io.Writer, events *v1.EventList, pattern string) {
 	if len(events.Items) > 0 {
-		fmt.Printf("\nEvents\n--------------\n")
-		w := tabwriter.NewWriter(os.Stdout, 0, 0, 1, ' ', 0)
-		fmt.Fprintf(w, "%v\t%v\t%v\t%v\t%v\t%v\n", "NAMESPACE", "LAST SEEN", "TYPE", "REASON", "OBJECT", "MESSAGE")
+		fmt.Fprintf(w, "\nEvents\n--------------\n")
+		tabWriter := tabwriter.NewWriter(w, 0, 0, 1, ' ', 0)
+		fmt.Fprintf(tabWriter, "%v\t%v\t%v\t%v\t%v\t%v\n", "NAMESPACE", "LAST SEEN", "TYPE", "REASON", "OBJECT", "MESSAGE")
 		for _, event := range events.Items {
-			fmt.Fprintf(w, "%v\t%v\t%v\t%v\t%v\t%v\n", event.Namespace, "", event.Type, "", event.InvolvedObject.Kind+"/"+event.InvolvedObject.Name, event.Message)
+			if !matchesPattern(event.Name, pattern) {
+				continue
+			}
+			fmt.Fprintf(tabWriter, "%v\t%v\t%v\t%v\t%v\t%v\n", event.Namespace, "", event.Type, "", event.InvolvedObject.Kind+"/"+event.InvolvedObject.Name, event.Message)
 		}
-		w.Flush()
+		tabWriter.Flush()
 	}
 }
-func printLimitRanges(limitRanges *v1.LimitRangeList, resName string) {
+func printLimitRanges(w io.Writer, limitRanges *v1.LimitRangeList, pattern string) {
 	if len(limitRanges.Items) > 0 {
-		fmt.Printf("\nLimitRanges\n--------------\n")
-		w := tabwriter.NewWriter(os.Stdout, 0, 0, 1, ' ', 0)
-		fmt.Fprintf(w, "%v\t%v\n", "NAME", "CREATED AT")
+		fmt.Fprintf(w, "\nLimitRanges\n--------------\n")
+		tabWriter := tabwriter.NewWriter(w, 0, 0, 1, ' ', 0)
+		fmt.Fprintf(tabWriter, "%v\t%v\n", "NAME", "CREATED AT")
 		for _, limitRange := range limitRanges.Items {
-			if resName != "" {
-				if strings.Contains(limitRange.Name, resName) {
-					fmt.Fprintf(w, "%v\t%v\n", limitRange.Name, limitRange.CreationTimestamp)
-				}
-			} else {
-				fmt.Fprintf(w, "%v\t%v\n", limitRange.Name, limitRange.CreationTimestamp)
+			if !matchesPattern(limitRange.Name, pattern) {
+				continue
 			}
+			fmt.Fprintf(tabWriter, "%v\t%v\n", limitRange.Name, limitRange.CreationTimestamp)
 		}
-		w.Flush()
+		tabWriter.Flush()
 	}
 }
-func printNamespaces(namespaces *v1.NamespaceList, resName string) {
+func printNamespaces(w io.Writer, namespaces *v1.NamespaceList, pattern string) {
 	if len(namespaces.Items) > 0 {
-		fmt.Printf("\nNamespaces\n--------------\n")
-		w := tabwriter.NewWriter(os.Stdout, 0, 0, 1, ' ', 0)
-		fmt.Fprintf(w, "%v\t%v\t%v\n", "NAME", "STATUS", "AGE")
+		fmt.Fprintf(w, "\nNamespaces\n--------------\n")
+		tabWriter := tabwriter.NewWriter(w, 0, 0, 1, ' ', 0)
+		fmt.Fprintf(tabWriter, "%v\t%v\t%v\n", "NAME", "STATUS", "AGE")
 		for _, namespace := range namespaces.Items {
-			if resName != "" {
-				if strings.Contains(namespace.Name, resName) {
-					fmt.Fprintf(w, "%v\t%v\t%v\n", namespace.Name, namespace.Status, "")
-				}
-			} else {
-				fmt.Fprintf(w, "%v\t%v\t%v\n", namespace.Name, namespace.Status, "")
+			if !matchesPattern(namespace.Name, pattern) {
+				continue
 			}
+			fmt.Fprintf(tabWriter, "%v\t%v\t%v\n", namespace.Name, namespace.Status, "")
 		}
-		w.Flush()
+		tabWriter.Flush()
 	}
 }
-func printPVs(pvs *v1.PersistentVolumeList, resName string) {
+func printPVs(w io.Writer, pvs *v1.PersistentVolumeList, pattern string) {
 	if len(pvs.Items) > 0 {
-		fmt.Printf("\nPersistentVolumes\n--------------\n")
-		w := tabwriter.NewWriter(os.Stdout, 0, 0, 1, ' ', 0)
-		fmt.Fprintf(w, "%v\t%v\t%v\t%v\t%v\t%v\t%v\t%v\t%v\n", "NAME", "CAPACITY", "ACCESS MODES", "RECLAIM POLICY", "STATUS", "CLAIM", "STORAGECLASS", "REASON", "AGE")
+		fmt.Fprintf(w, "\nPersistentVolumes\n--------------\n")
+		tabWriter := tabwriter.NewWriter(w, 0, 0, 1, ' ', 0)
+		fmt.Fprintf(tabWriter, "%v\t%v\t%v\t%v\t%v\t%v\t%v\t%v\t%v\n", "NAME", "CAPACITY", "ACCESS MODES", "RECLAIM POLICY", "STATUS", "CLAIM", "STORAGECLASS", "REASON", "AGE")
 
 		for _, pv := range pvs.Items {
-			if resName != "" {
-				if strings.Contains(pv.Name, resName) {
-					fmt.Fprintf(w, "%v\t%v\t%v\t%v\t%v\t%v\t%v\t%v\t%v\n", pv.Name, "", pv.Spec.AccessModes, pv.Spec.PersistentVolumeReclaimPolicy, pv.Status, pv.Spec.ClaimRef.Namespace+"/"+pv.Spec.ClaimRef.Name, pv.Spec.StorageClassName, pv.Status.Reason, "")
-				}
-			} else {
-				fmt.Fprintf(w, "%v\t%v\t%v\t%v\t%v\t%v\t%v\t%v\t%v\n", pv.Name, "", pv.Spec.AccessModes, pv.Spec.PersistentVolumeReclaimPolicy, pv.Status, pv.Spec.ClaimRef.Namespace+"/"+pv.Spec.ClaimRef.Name, pv.Spec.StorageClassName, pv.Status.Reason, "")
+			if !matchesPattern(pv.Name, pattern) {
+				continue
 			}
+			fmt.Fprintf(tabWriter, "%v\t%v\t%v\t%v\t%v\t%v\t%v\t%v\t%v\n", pv.Name, "", pv.Spec.AccessModes, pv.Spec.PersistentVolumeReclaimPolicy, pv.Status, pv.Spec.ClaimRef.Namespace+"/"+pv.Spec.ClaimRef.Name, pv.Spec.StorageClassName, pv.Status.Reason, "")
 		}
-		w.Flush()
+		tabWriter.Flush()
 	}
 }
-func printPVCs(pvcs *v1.PersistentVolumeClaimList, resName string) {
+func printPVCs(w io.Writer, pvcs *v1.PersistentVolumeClaimList, pattern string) {
 	if len(pvcs.Items) > 0 {
-		fmt.Printf("\nPersistentVolumeClaims\n--------------\n")
-		w := tabwriter.NewWriter(os.Stdout, 0, 0, 1, ' ', 0)
-		fmt.Fprintf(w, "%v\t%v\t%v\t%v\t%v\t%v\t%v\n", "NAME", "STATUS", "VOLUME", "CAPACITY", "ACCESS MODES", "STORAGECLASS", "AGE")
+		fmt.Fprintf(w, "\nPersistentVolumeClaims\n--------------\n")
+		tabWriter := tabwriter.NewWriter(w, 0, 0, 1, ' ', 0)
+		fmt.Fprintf(tabWriter, "%v\t%v\t%v\t%v\t%v\t%v\t%v\n", "NAME", "STATUS", "VOLUME", "CAPACITY", "ACCESS MODES", "STORAGECLASS", "AGE")
 		for _, pvc := range pvcs.Items {
-			if resName != "" {
-				if strings.Contains(pvc.Name, resName) {
-					fmt.Fprintf(w, "%v\t%v\t%v\t%v\t%v\t%v\t%v\n", pvc.Name, pvc.Status, "", pvc.Status.Capacity.Cpu(), pvc.Spec.AccessModes, pvc.Spec.StorageClassName, "")
-				}
-			} else {
-				fmt.Fprintf(w, "%v\t%v\t%v\t%v\t%v\t%v\t%v\n", pvc.Name, pvc.Status, "", pvc.Status.Capacity.Cpu(), pvc.Spec.AccessModes, pvc.Spec.StorageClassName, "")
+			if !matchesPattern(pvc.Name, pattern) {
+				continue
 			}
-
+			fmt.Fprintf(tabWriter, "%v\t%v\t%v\t%v\t%v\t%v\t%v\n", pvc.Name, pvc.Status, "", pvc.Status.Capacity.Cpu(), pvc.Spec.AccessModes, pvc.Spec.StorageClassName, "")
 		}
-		w.Flush()
+		tabWriter.Flush()
 	}
 }
 
-func printResourceQuotas(resQuotas *v1.ResourceQuotaList, resName string) {
+func printResourceQuotas(w io.Writer, resQuotas *v1.ResourceQuotaList, pattern string) {
 	if len(resQuotas.Items) > 0 {
-		fmt.Printf("\nResourceQuotas\n--------------\n")
-		w := tabwriter.NewWriter(os.Stdout, 0, 0, 1, ' ', 0)
-		fmt.Fprintf(w, "%v\t%v\n", "NAME", "CREATED AT")
+		fmt.Fprintf(w, "\nResourceQuotas\n--------------\n")
+		tabWriter := tabwriter.NewWriter(w, 0, 0, 1, ' ', 0)
+		fmt.Fprintf(tabWriter, "%v\t%v\n", "NAME", "CREATED AT")
 		for _, resQ := range resQuotas.Items {
-			if resName != "" {
-				if strings.Contains(resQ.Name, resName) {
-					fmt.Fprintf(w, "%v\t%v\n", resQ.Name, resQ.CreationTimestamp)
-				}
-			} else {
-				fmt.Fprintf(w, "%v\t%v\n", resQ.Name, resQ.CreationTimestamp)
+			if !matchesPattern(resQ.Name, pattern) {
+				continue
 			}
+			fmt.Fprintf(tabWriter, "%v\t%v\n", resQ.Name, resQ.CreationTimestamp)
 		}
-		w.Flush()
+		tabWriter.Flush()
 	}
 }
-func printSecrets(secrets *v1.SecretList, resName string) {
+func printSecrets(w io.Writer, secrets *v1.SecretList, pattern string) {
 	if len(secrets.Items) > 0 {
-		fmt.Printf("\nSecrets\n--------------\n")
-		w := tabwriter.NewWriter(os.Stdout, 0, 0, 1, ' ', 0)
-		fmt.Fprintf(w, "%v\t%v\t%v\t%v\n", "NAME", "TYPE", "DATA", "AGE")
+		fmt.Fprintf(w, "\nSecrets\n--------------\n")
+		tabWriter := tabwriter.NewWriter(w, 0, 0, 1, ' ', 0)
+		fmt.Fprintf(tabWriter, "%v\t%v\t%v\t%v\n", "NAME", "TYPE", "DATA", "AGE")
 		for _, secret := range secrets.Items {
-			if resName != "" {
-				if strings.Contains(secret.Name, resName) {
-					fmt.Fprintf(w, "%v\t%v\t%v\t%v\n", secret.Name, secret.Type, len(secret.Data), "")
-				}
-			} else {
-				fmt.Fprintf(w, "%v\t%v\t%v\t%v\n", secret.Name, secret.Type, len(secret.Data), "")
+			if !matchesPattern(secret.Name, pattern) {
+				continue
 			}
+			fmt.Fprintf(tabWriter, "%v\t%v\t%v\t%v\n", secret.Name, secret.Type, len(secret.Data), "")
 		}
-		w.Flush()
+		tabWriter.Flush()
 	}
 }
-func printServices(services *v1.ServiceList, resName string) {
+func printServices(w io.Writer, services *v1.ServiceList, pattern string) {
 	if len(services.Items) > 0 {
-		fmt.Printf("\nServices\n--------------\n")
-		w := tabwriter.NewWriter(os.Stdout, 0, 0, 1, ' ', 0)
-		fmt.Fprintf(w, "%v\t%v\t%v\t%v\t%v\t%v\n", "NAME", "TYPE", "CLUSTER-IP", "EXTERNAL-IP", "PORT(S)", "AGE")
+		fmt.Fprintf(w, "\nServices\n--------------\n")
+		tabWriter := tabwriter.NewWriter(w, 0, 0, 1, ' ', 0)
+		fmt.Fprintf(tabWriter, "%v\t%v\t%v\t%v\t%v\t%v\n", "NAME", "TYPE", "CLUSTER-IP", "EXTERNAL-IP", "PORT(S)", "AGE")
 
 		for _, service := range services.Items {
-			if resName != "" {
-				if strings.Contains(service.Name, resName) {
-					fmt.Fprintf(w, "%v\t%v\t%v\t%v\t%v\t%v\n", service.Name, service.Spec.Type, service.Spec.ClusterIP, service.Spec.ExternalIPs, service.Spec.Ports, "")
-				}
-			} else {
-				fmt.Fprintf(w, "%v\t%v\t%v\t%v\t%v\t%v\n", service.Name, service.Spec.Type, service.Spec.ClusterIP, service.Spec.ExternalIPs, service.Spec.Ports, "")
+			if !matchesPattern(service.Name, pattern) {
+				continue
 			}
+			fmt.Fprintf(tabWriter, "%v\t%v\t%v\t%v\t%v\t%v\n", service.Name, service.Spec.Type, service.Spec.ClusterIP, service.Spec.ExternalIPs, service.Spec.Ports, "")
 		}
-		w.Flush()
+		tabWriter.Flush()
 	}
 }
-func printServiceAccounts(serviceAccs *v1.ServiceAccountList, resName string) {
+func printServiceAccounts(w io.Writer, serviceAccs *v1.ServiceAccountList, pattern string) {
 	if len(serviceAccs.Items) > 0 {
-		fmt.Printf("\nServiceAccounts\n--------------\n")
-		w := tabwriter.NewWriter(os.Stdout, 0, 0, 1, ' ', 0)
-		fmt.Fprintf(w, "%v\t%v\t%v\n", "NAME", "SECRETS", "AGE")
+		fmt.Fprintf(w, "\nServiceAccounts\n--------------\n")
+		tabWriter := tabwriter.NewWriter(w, 0, 0, 1, ' ', 0)
+		fmt.Fprintf(tabWriter, "%v\t%v\t%v\n", "NAME", "SECRETS", "AGE")
 		for _, serviceAcc := range serviceAccs.Items {
-			if resName != "" {
-				if strings.Contains(serviceAcc.Name, resName) {
-					fmt.Fprintf(w, "%v\t%v\t%v\n", serviceAcc.Name, len(serviceAcc.Secrets), "")
-				}
-			} else {
-				fmt.Fprintf(w, "%v\t%v\t%v\n", serviceAcc.Name, len(serviceAcc.Secrets), "")
+			if !matchesPattern(serviceAcc.Name, pattern) {
+				continue
 			}
+			fmt.Fprintf(tabWriter, "%v\t%v\t%v\n", serviceAcc.Name, len(serviceAcc.Secrets), "")
 		}
-		w.Flush()
+		tabWriter.Flush()
 	}
 }
-func printDaemonSets(daemonsets *appsv1.DaemonSetList, resName string) {
+func printDaemonSets(w io.Writer, daemonsets *appsv1.DaemonSetList, pattern string) {
 	if len(daemonsets.Items) > 0 {
-		fmt.Printf("\nDaemonSets\n--------------\n")
-		w := tabwriter.NewWriter(os.Stdout, 0, 0, 1, ' ', 0)
-		fmt.Fprintf(w, "%v\t%v\t%v\t%v\t%v\t%v\t%v\t%v\t%v\n", "NAMESPACE", "NAME", "DESIRED", "CURRENT", "READY", "UP-TO-DATE", "AVAILABLE", "NODE SELECTOR", "AGE")
+		fmt.Fprintf(w, "\nDaemonSets\n--------------\n")
+		tabWriter := tabwriter.NewWriter(w, 0, 0, 1, ' ', 0)
+		fmt.Fprintf(tabWriter, "%v\t%v\t%v\t%v\t%v\t%v\t%v\t%v\t%v\n", "NAMESPACE", "NAME", "DESIRED", "CURRENT", "READY", "UP-TO-DATE", "AVAILABLE", "NODE SELECTOR", "AGE")
 		for _, ds := range daemonsets.Items {
-			if resName != "" {
-				if strings.Contains(ds.Name, resName) {
-					fmt.Fprintf(w, "%v\t%v\t%v\t%v\t%v\t%v\t%v\t%v\t%v\n", ds.Namespace, ds.Name, ds.Status.DesiredNumberScheduled, ds.Status.CurrentNumberScheduled, ds.Status.NumberReady, "", ds.Status.NumberAvailable, ds.Spec.Template.Spec.NodeSelector, "")
-				}
-			} else {
-				fmt.Fprintf(w, "%v\t%v\t%v\t%v\t%v\t%v\t%v\t%v\t%v\n", ds.Namespace, ds.Name, ds.Status.DesiredNumberScheduled, ds.Status.CurrentNumberScheduled, ds.Status.NumberReady, "", ds.Status.NumberAvailable, ds.Spec.Template.Spec.NodeSelector, "")
+			if !matchesPattern(ds.Name, pattern) {
+				continue
 			}
+			fmt.Fprintf(tabWriter, "%v\t%v\t%v\t%v\t%v\t%v\t%v\t%v\t%v\n", ds.Namespace, ds.Name, ds.Status.DesiredNumberScheduled, ds.Status.CurrentNumberScheduled, ds.Status.NumberReady, "", ds.Status.NumberAvailable, ds.Spec.Template.Spec.NodeSelector, "")
 		}
-		w.Flush()
+		tabWriter.Flush()
 	}
 }
-func printDeployments(deployments *appsv1.DeploymentList, resName string) {
+func printDeployments(w io.Writer, deployments *appsv1.DeploymentList, pattern string) {
 	if len(deployments.Items) > 0 {
-		fmt.Printf("\nDeployments\n--------------\n")
-		w := tabwriter.NewWriter(os.Stdout, 0, 0, 1, ' ', 0)
-		fmt.Fprintf(w, "%v\t%v\t%v\t%v\t%v\n", "NAME", "READY", "UP-TO-DATE", "AVAILABLE", "AGE")
+		fmt.Fprintf(w, "\nDeployments\n--------------\n")
+		tabWriter := tabwriter.NewWriter(w, 0, 0, 1, ' ', 0)
+		fmt.Fprintf(tabWriter, "%v\t%v\t%v\t%v\t%v\n", "NAME", "READY", "UP-TO-DATE", "AVAILABLE", "AGE")
 		for _, deployment := range deployments.Items {
-			if resName != "" {
-				if strings.Contains(deployment.Name, resName) {
-					fmt.Fprintf(w, "%v\t%v\t%v\t%v\t%v\n", deployment.Name, deployment.Status.ReadyReplicas, "", deployment.Status.AvailableReplicas, "")
-				}
-			} else {
-				fmt.Fprintf(w, "%v\t%v\t%v\t%v\t%v\n", deployment.Name, deployment.Status.ReadyReplicas, "", deployment.Status.AvailableReplicas, "")
+			if !matchesPattern(deployment.Name, pattern) {
+				continue
 			}
+			fmt.Fprintf(tabWriter, "%v\t%v\t%v\t%v\t%v\n", deployment.Name, deployment.Status.ReadyReplicas, "", deployment.Status.AvailableReplicas, "")
 		}
-		w.Flush()
+		tabWriter.Flush()
 	}
 }
-func printReplicaSets(rsets *appsv1.ReplicaSetList, resName string) {
+func printReplicaSets(w io.Writer, rsets *appsv1.ReplicaSetList, pattern string) {
 	if len(rsets.Items) > 0 {
-		fmt.Printf("\nReplicaSets\n--------------\n")
-		w := tabwriter.NewWriter(os.Stdout, 0, 0, 1, ' ', 0)
-		fmt.Fprintf(w, "%v\t%v\t%v\t%v\t%v\n", "NAME", "DESIRED", "CURRENT", "READY", "AGE")
+		fmt.Fprintf(w, "\nReplicaSets\n--------------\n")
+		tabWriter := tabwriter.NewWriter(w, 0, 0, 1, ' ', 0)
+		fmt.Fprintf(tabWriter, "%v\t%v\t%v\t%v\t%v\n", "NAME", "DESIRED", "CURRENT", "READY", "AGE")
 		for _, rs := range rsets.Items {
-			if resName != "" {
-				if strings.Contains(rs.Name, resName) {
-					fmt.Fprintf(w, "%v\t%v\t%v\t%v\t%v\n", rs.Name, "", "", "", "")
-				}
-			} else {
-				fmt.Fprintf(w, "%v\t%v\t%v\t%v\t%v\n", rs.Name, "", "", "", "")
+			if !matchesPattern(rs.Name, pattern) {
+				continue
 			}
+			fmt.Fprintf(tabWriter, "%v\t%v\t%v\t%v\t%v\n", rs.Name, "", "", "", "")
 		}
-		w.Flush()
+		tabWriter.Flush()
 	}
 }
-func printStateFulSets(ssets *appsv1.StatefulSetList, resName string) {
+func printStateFulSets(w io.Writer, ssets *appsv1.StatefulSetList, pattern string) {
 	if len(ssets.Items) > 0 {
-		fmt.Printf("\nStatefulSets\n--------------\n")
-		w := tabwriter.NewWriter(os.Stdout, 0, 0, 1, ' ', 0)
-		fmt.Fprintf(w, "%v\t%v\t%v\n", "NAME", "READY", "AGE")
+		fmt.Fprintf(w, "\nStatefulSets\n--------------\n")
+		tabWriter := tabwriter.NewWriter(w, 0, 0, 1, ' ', 0)
+		fmt.Fprintf(tabWriter, "%v\t%v\t%v\n", "NAME", "READY", "AGE")
 		for _, sset := range ssets.Items {
-			if resName != "" {
-				if strings.Contains(sset.Name, resName) {
-					fmt.Fprintf(w, "%v\t%v\t%v\n", sset.Name, sset.Status.ReadyReplicas, "")
-				}
-			} else {
-				fmt.Fprintf(w, "%v\t%v\t%v\n", sset.Name, sset.Status.ReadyReplicas, "")
+			if !matchesPattern(sset.Name, pattern) {
+				continue
 			}
+			fmt.Fprintf(tabWriter, "%v\t%v\t%v\n", sset.Name, sset.Status.ReadyReplicas, "")
 		}
-		w.Flush()
+		tabWriter.Flush()
 	}
 }
 
-func Printer(resource interface{}, resName string) {
+func Printer(w io.Writer, resource interface{}, pattern string) {
 	switch typedResource := resource.(type) {
 	case *v1.PodList:
-		pods := typedResource
-		printPodDetails(pods, resName)
+		printPodDetails(w, typedResource, pattern)
 	case *v1.ConfigMapList:
-		cms := typedResource
-		printConfigMaps(cms, resName)
+		printConfigMaps(w, typedResource, pattern)
 	case *v1.EndpointsList:
-		endPoints := typedResource
-		printEndpoints(endPoints, resName)
+		printEndpoints(w, typedResource, pattern)
 	case *v1.EventList:
-		events := typedResource
-		printEvents(events, resName)
+		printEvents(w, typedResource, pattern)
 	case *v1.LimitRangeList:
-		limitRanges := typedResource
-		printLimitRanges(limitRanges, resName)
+		printLimitRanges(w, typedResource, pattern)
 	case *v1.NamespaceList:
-		namespaces := typedResource
-		printNamespaces(namespaces, resName)
+		printNamespaces(w, typedResource, pattern)
 	case *v1.PersistentVolumeList:
-		pvs := typedResource
-		printPVs(pvs, resName)
+		printPVs(w, typedResource, pattern)
 	case *v1.PersistentVolumeClaimList:
-		pvcs := typedResource
-		printPVCs(pvcs, resName)
+		printPVCs(w, typedResource, pattern)
 	case *v1.PodTemplateList:
-		podTemplates := typedResource
-		printPodTemplates(podTemplates, resName)
+		printPodTemplates(w, typedResource, pattern)
 	case *v1.ResourceQuotaList:
-		resQuotas := typedResource
-		printResourceQuotas(resQuotas, resName)
+		printResourceQuotas(w, typedResource, pattern)
 	case *v1.SecretList:
-		secrets := typedResource
-		printSecrets(secrets, resName)
+		printSecrets(w, typedResource, pattern)
 	case *v1.ServiceList:
-		services := typedResource
-		printServices(services, resName)
+		printServices(w, typedResource, pattern)
 	case *v1.ServiceAccountList:
-		serviceAccs := typedResource
-		printServiceAccounts(serviceAccs, resName)
+		printServiceAccounts(w, typedResource, pattern)
 
 		// these will be from the appsV1
 	case *appsv1.DaemonSetList:
-		daemonsets := typedResource
-		printDaemonSets(daemonsets, resName)
+		printDaemonSets(w, typedResource, pattern)
 	case *appsv1.DeploymentList:
-		deployments := typedResource
-		printDeployments(deployments, resName)
+		printDeployments(w, typedResource, pattern)
 	case *appsv1.ReplicaSetList:
-		rsets := typedResource
-		printReplicaSets(rsets, resName)
+		printReplicaSets(w, typedResource, pattern)
 	case *appsv1.StatefulSetList:
-		ssets := typedResource
-		printStateFulSets(ssets, resName)
+		printStateFulSets(w, typedResource, pattern)
 	}
 }
