@@ -46,23 +46,6 @@ func printPodTemplates(podTemplates *v1.PodTemplateList, resName string) {
 		w.Flush()
 	}
 }
-func printComponentStatuses(componentStatuses *v1.ComponentStatusList, resName string) {
-	if len(componentStatuses.Items) > 0 {
-		fmt.Printf("\nComponentStatuses\n-------------\n")
-		w := tabwriter.NewWriter(os.Stdout, 0, 0, 1, ' ', 0)
-		fmt.Fprintf(w, "%v\t%v\t%v\t%v\n", "NAME", "STATUS", "MESSAGE", "ERROR")
-		for _, componentStatus := range componentStatuses.Items {
-			if resName != "" {
-				if strings.Contains(componentStatus.Name, resName) {
-					fmt.Fprintf(w, "%v\t%v\t%v\t%v\n", componentStatus.Name, componentStatus.Conditions[0].Type, componentStatus.Conditions[0].Message, componentStatus.Conditions[0].Error)
-				}
-			} else {
-				fmt.Fprintf(w, "%v\t%v\t%v\t%v\n", componentStatus.Name, componentStatus.Conditions[0].Type, componentStatus.Conditions[0].Message, componentStatus.Conditions[0].Error)
-			}
-		}
-		w.Flush()
-	}
-}
 func printConfigMaps(cms *v1.ConfigMapList, resName string) {
 	if len(cms.Items) > 0 {
 		fmt.Printf("\nConfigMaps\n--------------\n")
@@ -322,9 +305,6 @@ func Printer(resource interface{}, resName string) {
 	case resource.(*v1.PodList):
 		pods := resource.(*v1.PodList)
 		printPodDetails(pods, resName)
-	case resource.(*v1.ComponentStatusList):
-		componentStatuses := resource.(*v1.ComponentStatusList)
-		printComponentStatuses(componentStatuses, resName)
 	case resource.(*v1.ConfigMapList):
 		cms := resource.(*v1.ConfigMapList)
 		printConfigMaps(cms, resName)

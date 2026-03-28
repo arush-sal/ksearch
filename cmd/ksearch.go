@@ -7,8 +7,8 @@ import (
 
 	"os"
 
-	"github.com/infracloudio/ksearch/pkg/printers"
-	"github.com/infracloudio/ksearch/pkg/util"
+	"github.com/arush-sal/ksearch/pkg/printers"
+	"github.com/arush-sal/ksearch/pkg/util"
 	"k8s.io/client-go/kubernetes"
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
 
