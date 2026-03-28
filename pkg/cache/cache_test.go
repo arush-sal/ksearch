@@ -91,7 +91,7 @@ func TestRead_Expired(t *testing.T) {
 	}
 
 	if err := json.NewEncoder(file).Encode(entry); err != nil {
-		file.Close()
+		_ = file.Close()
 		t.Fatalf("encode cache file: %v", err)
 	}
 

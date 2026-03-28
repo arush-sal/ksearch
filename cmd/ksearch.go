@@ -27,6 +27,7 @@ var (
 	resName, namespace, kinds string
 	cacheTTL                  time.Duration
 	noCache                   bool
+	version                   = "dev"
 )
 
 var defaultResources = []string{
@@ -61,7 +62,7 @@ func effectiveResources(kinds string) []string {
 var rootCmd = &cobra.Command{
 	Use:     "ksearch",
 	Short:   "run ksearch --help to get the usage",
-	Version: "v0.0.1",
+	Version: version,
 	Long:    `ksearch is a command line tool to search for a given pattern in a Kubernetes cluster and will print all of the available resources in a cluster if none is provided`,
 	Run: func(cmd *cobra.Command, args []string) {
 		ttl, err := resolvedCacheTTL(cmd)
@@ -153,6 +154,11 @@ func Execute() {
 	if err := rootCmd.Execute(); err != nil {
 		os.Exit(1)
 	}
+}
+
+func SetVersion(buildVersion string) {
+	version = buildVersion
+	rootCmd.Version = version
 }
 
 func init() {

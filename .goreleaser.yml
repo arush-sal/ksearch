@@ -1,0 +1,43 @@
+version: 2
+
+builds:
+  - main: .
+    binary: ksearch
+    ldflags:
+      - -s -w -X main.version={{ .Version }}
+    goos: [linux, darwin, windows]
+    goarch: [amd64, arm64]
+    ignore:
+      - goos: windows
+        goarch: arm64
+
+archives:
+  - formats: [tar.gz]
+    name_template: "ksearch_{{ .Os }}_{{ .Arch }}"
+    format_overrides:
+      - goos: windows
+        formats: [zip]
+    files:
+      - LICENSE
+
+checksum:
+  name_template: checksums.txt
+  algorithm: sha256
+
+release:
+  github:
+    owner: arush-sal
+    name: ksearch
+  draft: false
+  prerelease: auto
+
+krews:
+  - name: ksearch
+    ids:
+      - default
+    homepage: https://github.com/arush-sal/ksearch
+    short_description: Search and list all Kubernetes resources in a namespace
+    description: Search and list all Kubernetes resources in a namespace.
+    repository:
+      owner: arush-sal
+      name: krew-index
