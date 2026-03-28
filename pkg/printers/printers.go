@@ -301,59 +301,59 @@ func printStateFulSets(ssets *appsv1.StatefulSetList, resName string) {
 }
 
 func Printer(resource interface{}, resName string) {
-	switch resource {
-	case resource.(*v1.PodList):
-		pods := resource.(*v1.PodList)
+	switch typedResource := resource.(type) {
+	case *v1.PodList:
+		pods := typedResource
 		printPodDetails(pods, resName)
-	case resource.(*v1.ConfigMapList):
-		cms := resource.(*v1.ConfigMapList)
+	case *v1.ConfigMapList:
+		cms := typedResource
 		printConfigMaps(cms, resName)
-	case resource.(*v1.EndpointsList):
-		endPoints := resource.(*v1.EndpointsList)
+	case *v1.EndpointsList:
+		endPoints := typedResource
 		printEndpoints(endPoints, resName)
-	case resource.(*v1.EventList):
-		events := resource.(*v1.EventList)
+	case *v1.EventList:
+		events := typedResource
 		printEvents(events, resName)
-	case resource.(*v1.LimitRangeList):
-		limitRanges := resource.(*v1.LimitRangeList)
+	case *v1.LimitRangeList:
+		limitRanges := typedResource
 		printLimitRanges(limitRanges, resName)
-	case resource.(*v1.NamespaceList):
-		namespaces := resource.(*v1.NamespaceList)
+	case *v1.NamespaceList:
+		namespaces := typedResource
 		printNamespaces(namespaces, resName)
-	case resource.(*v1.PersistentVolumeList):
-		pvs := resource.(*v1.PersistentVolumeList)
+	case *v1.PersistentVolumeList:
+		pvs := typedResource
 		printPVs(pvs, resName)
-	case resource.(*v1.PersistentVolumeClaimList):
-		pvcs := resource.(*v1.PersistentVolumeClaimList)
+	case *v1.PersistentVolumeClaimList:
+		pvcs := typedResource
 		printPVCs(pvcs, resName)
-	case resource.(*v1.PodTemplateList):
-		podTemplates := resource.(*v1.PodTemplateList)
+	case *v1.PodTemplateList:
+		podTemplates := typedResource
 		printPodTemplates(podTemplates, resName)
-	case resource.(*v1.ResourceQuotaList):
-		resQuotas := resource.(*v1.ResourceQuotaList)
+	case *v1.ResourceQuotaList:
+		resQuotas := typedResource
 		printResourceQuotas(resQuotas, resName)
-	case resource.(*v1.SecretList):
-		secrets := resource.(*v1.SecretList)
+	case *v1.SecretList:
+		secrets := typedResource
 		printSecrets(secrets, resName)
-	case resource.(*v1.ServiceList):
-		services := resource.(*v1.ServiceList)
+	case *v1.ServiceList:
+		services := typedResource
 		printServices(services, resName)
-	case resource.(*v1.ServiceAccountList):
-		serviceAccs := resource.(*v1.ServiceAccountList)
+	case *v1.ServiceAccountList:
+		serviceAccs := typedResource
 		printServiceAccounts(serviceAccs, resName)
 
 		// these will be from the appsV1
-	case resource.(*appsv1.DaemonSetList):
-		daemonsets := resource.(*appsv1.DaemonSetList)
+	case *appsv1.DaemonSetList:
+		daemonsets := typedResource
 		printDaemonSets(daemonsets, resName)
-	case resource.(*appsv1.DeploymentList):
-		deployments := resource.(*appsv1.DeploymentList)
+	case *appsv1.DeploymentList:
+		deployments := typedResource
 		printDeployments(deployments, resName)
-	case resource.(*appsv1.ReplicaSetList):
-		rsets := resource.(*appsv1.ReplicaSetList)
+	case *appsv1.ReplicaSetList:
+		rsets := typedResource
 		printReplicaSets(rsets, resName)
-	case resource.(*appsv1.StatefulSetList):
-		ssets := resource.(*appsv1.StatefulSetList)
+	case *appsv1.StatefulSetList:
+		ssets := typedResource
 		printStateFulSets(ssets, resName)
 	}
 }
