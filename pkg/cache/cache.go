@@ -90,15 +90,17 @@ func Write(key string, meta CacheMeta, sections []SectionEntry) error {
 	}
 
 	tempName := tempFile.Name()
-	defer os.Remove(tempName)
+	defer func() {
+		_ = os.Remove(tempName)
+	}()
 
 	if err := tempFile.Chmod(0o600); err != nil {
-		tempFile.Close()
+		_ = tempFile.Close()
 		return err
 	}
 
 	if err := json.NewEncoder(tempFile).Encode(entry); err != nil {
-		tempFile.Close()
+		_ = tempFile.Close()
 		return err
 	}
 
