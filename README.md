@@ -7,9 +7,7 @@
 [![Go Version](https://img.shields.io/github/go-mod/go-version/arush-sal/ksearch)](./go.mod)
 [![License](https://img.shields.io/github/license/arush-sal/ksearch)](./LICENSE)
 
-`ksearch` is a kubectl plugin for cluster-wide resource discovery when `kubectl get` is too narrow. Search by name pattern, limit by kinds, scope by namespace, and reuse cached results for faster repeated lookups. ⚡
-
-[Install with Krew](#installation) • [Download a release](#installation) • [See examples](#examples)
+[Install with Krew](./README.md#installation) • [Download a release](ttps://github.com/arush-sal/ksearch/releases) • [See examples](./README.md#examples)
 
 ## ✨ Features
 
@@ -78,13 +76,13 @@ kubectl ksearch --no-cache
 
 ## 🛠 Flags
 
-| Flag | Description |
-|---|---|
-| `-n, --namespace` | Namespace to search |
-| `-p, --pattern` | Match resource names by substring |
-| `-k, --kinds` | Comma-separated kinds or resources to include |
-| `--cache-ttl` | Cache TTL, defaults to `1m` |
-| `--no-cache` | Skip cached output |
+| Flag              | Description                                   |
+|-------------------|-----------------------------------------------|
+| `-n, --namespace` | Namespace to search                           |
+| `-p, --pattern`   | Match resource names by substring             |
+| `-k, --kinds`     | Comma-separated kinds or resources to include |
+| `--cache-ttl`     | Cache TTL, defaults to `1m`                   |
+| `--no-cache`      | Skip cached output                            |
 
 Environment override:
 
