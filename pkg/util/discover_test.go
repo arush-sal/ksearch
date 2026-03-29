@@ -18,8 +18,8 @@ func TestDiscover_AllWhenEmpty(t *testing.T) {
 		t.Fatalf("Discover returned error: %v", err)
 	}
 
-	if len(resources) != 3 {
-		t.Fatalf("expected 3 listable resources, got %d", len(resources))
+	if len(resources) != 4 {
+		t.Fatalf("expected 4 listable resources, got %d", len(resources))
 	}
 }
 
@@ -55,7 +55,7 @@ func TestDiscover_SkipsNonListable(t *testing.T) {
 	}
 }
 
-func TestDiscover_SkipsUnsupportedListableKinds(t *testing.T) {
+func TestDiscover_ReturnsUnsupportedListableKinds(t *testing.T) {
 	t.Parallel()
 
 	resources, err := Discover(newFakeDiscovery(), "")
@@ -63,10 +63,15 @@ func TestDiscover_SkipsUnsupportedListableKinds(t *testing.T) {
 		t.Fatalf("Discover returned error: %v", err)
 	}
 
+	foundWidget := false
 	for _, resource := range resources {
 		if resource.Kind == "Widget" {
-			t.Fatalf("expected unsupported listable resource to be skipped: %#v", resource)
+			foundWidget = true
 		}
+	}
+
+	if !foundWidget {
+		t.Fatal("expected listable widget resource to be discovered")
 	}
 }
 
@@ -142,8 +147,44 @@ func TestDiscover_PartialFailureContinues(t *testing.T) {
 		t.Fatalf("expected partial failure to continue, got error: %v", err)
 	}
 
-	if len(resources) != 3 {
+	if len(resources) != 4 {
 		t.Fatalf("expected partial discovery to return listable resources, got %d", len(resources))
+	}
+}
+
+func TestDiscover_DeduplicatesLogicalResourcesAcrossVersions(t *testing.T) {
+	t.Parallel()
+
+	dc := &discoveryfake.FakeDiscovery{
+		Fake: &k8stesting.Fake{
+			Resources: []*metav1.APIResourceList{
+				{
+					GroupVersion: "example.com/v1",
+					APIResources: []metav1.APIResource{
+						{Kind: "Widget", Name: "widgets", Namespaced: true, Verbs: metav1.Verbs{"get", "list"}},
+					},
+				},
+				{
+					GroupVersion: "example.com/v1beta1",
+					APIResources: []metav1.APIResource{
+						{Kind: "Widget", Name: "widgets", Namespaced: true, Verbs: metav1.Verbs{"get", "list"}},
+					},
+				},
+			},
+		},
+	}
+
+	resources, err := Discover(dc, "")
+	if err != nil {
+		t.Fatalf("Discover returned error: %v", err)
+	}
+
+	if len(resources) != 1 {
+		t.Fatalf("expected 1 deduplicated resource, got %d", len(resources))
+	}
+
+	if resources[0].APIVersion != "v1" {
+		t.Fatalf("expected first discovered version to be kept, got %q", resources[0].APIVersion)
 	}
 }
 

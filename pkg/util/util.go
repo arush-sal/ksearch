@@ -6,24 +6,22 @@ import (
 	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
 )
 
 // Getter the
 // This should be go routine ready. Such that getter can be called via goroutines and over a channel the value can be passed to a switch type through with the respective printer can be called.
-func Getter(namespace string, clientset kubernetes.Interface, resources []ResourceMeta, c chan interface{}) {
+func Getter(namespace string, clientset kubernetes.Interface, restConfig *rest.Config, resources []ResourceMeta, c chan interface{}) {
 	defer close(c)
 	ctx := context.Background()
-	var err error
-	var list interface{}
 
 	for _, meta := range resources {
-		resourceName, ok := canonicalResourceName(meta.Kind, meta.Resource)
-		if !ok {
-			log.Debugf("kind %q not handled, skipping", meta.Kind)
-			continue
-		}
+		var (
+			err  error
+			list interface{}
+		)
 
-		switch resourceName {
+		switch canonicalResourceName(meta.Kind, meta.Resource) {
 		case "pods":
 			list, err = clientset.CoreV1().Pods(namespace).List(ctx, metav1.ListOptions{})
 			handleError(err, meta.Kind)
@@ -78,8 +76,13 @@ func Getter(namespace string, clientset kubernetes.Interface, resources []Resour
 			list, err = clientset.AppsV1().StatefulSets(namespace).List(ctx, metav1.ListOptions{})
 			handleError(err, meta.Kind)
 		default:
-			log.Debugf("kind %q not handled, skipping", meta.Kind)
-			continue
+			var dynamicList interface{}
+			unstructuredList, listErr := listUnstructuredResource(ctx, restConfig, namespace, meta)
+			if unstructuredList != nil {
+				dynamicList = unstructuredList
+			}
+			list, err = dynamicList, listErr
+			handleError(err, meta.Kind)
 		}
 
 		if list != nil {

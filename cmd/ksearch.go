@@ -81,7 +81,7 @@ var rootCmd = &cobra.Command{
 			}
 		}
 
-		go util.Getter(namespace, clientset, resources, getter)
+		go util.Getter(namespace, clientset, cfg, resources, getter)
 
 		results := make([]cache.SectionEntry, len(resources))
 		var wg sync.WaitGroup

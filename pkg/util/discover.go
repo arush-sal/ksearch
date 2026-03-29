@@ -25,6 +25,7 @@ func Discover(dc discovery.DiscoveryInterface, kinds string) ([]ResourceMeta, er
 
 	filter := parseKindsFilter(kinds)
 	resources := make([]ResourceMeta, 0)
+	seen := make(map[string]bool)
 	for _, list := range lists {
 		if list == nil {
 			continue
@@ -39,12 +40,15 @@ func Discover(dc discovery.DiscoveryInterface, kinds string) ([]ResourceMeta, er
 			if !hasVerb(resource.Verbs, "list") {
 				continue
 			}
-			if _, ok := canonicalResourceName(resource.Kind, resource.Name); !ok {
-				continue
-			}
 			if !matchesKindsFilter(filter, resource.Kind, resource.Name) {
 				continue
 			}
+
+			logicalKey := fmt.Sprintf("%s/%s/%t", gv.Group, resource.Name, resource.Namespaced)
+			if seen[logicalKey] {
+				continue
+			}
+			seen[logicalKey] = true
 
 			resources = append(resources, ResourceMeta{
 				Kind:       resource.Kind,
@@ -94,80 +98,80 @@ func matchesKindsFilter(filter map[string]bool, kind, resource string) bool {
 	return filter[strings.ToLower(kind)] || filter[strings.ToLower(resource)]
 }
 
-func canonicalResourceName(kind, resource string) (string, bool) {
+func canonicalResourceName(kind, resource string) string {
 	switch strings.ToLower(strings.TrimSpace(resource)) {
 	case "pods":
-		return "pods", true
+		return "pods"
 	case "configmaps":
-		return "configmaps", true
+		return "configmaps"
 	case "endpoints":
-		return "endpoints", true
+		return "endpoints"
 	case "events":
-		return "events", true
+		return "events"
 	case "limitranges":
-		return "limitranges", true
+		return "limitranges"
 	case "namespaces":
-		return "namespaces", true
+		return "namespaces"
 	case "persistentvolumes":
-		return "persistentvolumes", true
+		return "persistentvolumes"
 	case "persistentvolumeclaims":
-		return "persistentvolumeclaims", true
+		return "persistentvolumeclaims"
 	case "podtemplates":
-		return "podtemplates", true
+		return "podtemplates"
 	case "resourcequotas":
-		return "resourcequotas", true
+		return "resourcequotas"
 	case "secrets":
-		return "secrets", true
+		return "secrets"
 	case "services":
-		return "services", true
+		return "services"
 	case "serviceaccounts":
-		return "serviceaccounts", true
+		return "serviceaccounts"
 	case "daemonsets":
-		return "daemonsets", true
+		return "daemonsets"
 	case "deployments":
-		return "deployments", true
+		return "deployments"
 	case "replicasets":
-		return "replicasets", true
+		return "replicasets"
 	case "statefulsets":
-		return "statefulsets", true
+		return "statefulsets"
 	}
 
 	switch strings.ToLower(strings.TrimSpace(kind)) {
 	case "pod", "pods":
-		return "pods", true
+		return "pods"
 	case "configmap", "configmaps":
-		return "configmaps", true
+		return "configmaps"
 	case "endpoint", "endpoints":
-		return "endpoints", true
+		return "endpoints"
 	case "event", "events":
-		return "events", true
+		return "events"
 	case "limitrange", "limitranges":
-		return "limitranges", true
+		return "limitranges"
 	case "namespace", "namespaces":
-		return "namespaces", true
+		return "namespaces"
 	case "persistentvolume", "persistentvolumes":
-		return "persistentvolumes", true
+		return "persistentvolumes"
 	case "persistentvolumeclaim", "persistentvolumeclaims":
-		return "persistentvolumeclaims", true
+		return "persistentvolumeclaims"
 	case "podtemplate", "podtemplates":
-		return "podtemplates", true
+		return "podtemplates"
 	case "resourcequota", "resourcequotas":
-		return "resourcequotas", true
+		return "resourcequotas"
 	case "secret", "secrets":
-		return "secrets", true
+		return "secrets"
 	case "service", "services":
-		return "services", true
+		return "services"
 	case "serviceaccount", "serviceaccounts":
-		return "serviceaccounts", true
+		return "serviceaccounts"
 	case "daemonset", "daemonsets":
-		return "daemonsets", true
+		return "daemonsets"
 	case "deployment", "deployments":
-		return "deployments", true
+		return "deployments"
 	case "replicaset", "replicasets":
-		return "replicasets", true
+		return "replicasets"
 	case "statefulset", "statefulsets":
-		return "statefulsets", true
+		return "statefulsets"
 	}
 
-	return "", false
+	return ""
 }

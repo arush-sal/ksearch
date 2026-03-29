@@ -6,9 +6,9 @@ import (
 	"strings"
 	"text/tabwriter"
 
-	v1 "k8s.io/api/core/v1"
-
 	appsv1 "k8s.io/api/apps/v1"
+	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 
 func matchesPattern(name, pattern string) bool {
@@ -267,6 +267,28 @@ func printStateFulSets(w io.Writer, ssets *appsv1.StatefulSetList, pattern strin
 	}
 }
 
+func printUnstructuredList(w io.Writer, resources *unstructured.UnstructuredList, pattern string) {
+	if len(resources.Items) == 0 {
+		return
+	}
+
+	kind := resources.GetKind()
+	if kind == "" {
+		kind = "Resources"
+	}
+
+	writef(w, "\n%s\n--------------\n", kind)
+	tabWriter := tabwriter.NewWriter(w, 0, 0, 1, ' ', 0)
+	writef(tabWriter, "%v\t%v\n", "NAMESPACE", "NAME")
+	for _, resource := range resources.Items {
+		if !matchesPattern(resource.GetName(), pattern) {
+			continue
+		}
+		writef(tabWriter, "%v\t%v\n", resource.GetNamespace(), resource.GetName())
+	}
+	flushTabWriter(tabWriter)
+}
+
 func Printer(w io.Writer, resource interface{}, pattern string) {
 	switch typedResource := resource.(type) {
 	case *v1.PodList:
@@ -305,5 +327,7 @@ func Printer(w io.Writer, resource interface{}, pattern string) {
 		printReplicaSets(w, typedResource, pattern)
 	case *appsv1.StatefulSetList:
 		printStateFulSets(w, typedResource, pattern)
+	case *unstructured.UnstructuredList:
+		printUnstructuredList(w, typedResource, pattern)
 	}
 }
