@@ -12,7 +12,7 @@ runtime code.
 
 ### Data flow
 
-```
+```text
 cmd/ksearch.go  ──► pkg/util/util.go  ──► pkg/printers/printers.go
  (Cobra flags,       (clientset List       (type-switch → tabwriter
   client init,        calls over a          tables to stdout)
@@ -92,34 +92,34 @@ should follow and extend the existing test patterns below.
 
 ### pkg/printers
 
-| Test | What to verify |
-|------|---------------|
-| `TestMatchesPattern` | Empty pattern matches any name; non-empty pattern matches substring; non-matching returns false |
-| `TestPrinter_<Kind>` | Given a populated `*v1.XList`, `Printer()` writes expected header and rows to a `bytes.Buffer`; empty list writes nothing |
-| `TestPrinter_PatternFilter` | Rows not matching the pattern are absent from output |
+| Test                        | What to verify                                                                                                            |
+|-----------------------------|---------------------------------------------------------------------------------------------------------------------------|
+| `TestMatchesPattern`        | Empty pattern matches any name; non-empty pattern matches substring; non-matching returns false                           |
+| `TestPrinter_<Kind>`        | Given a populated `*v1.XList`, `Printer()` writes expected header and rows to a `bytes.Buffer`; empty list writes nothing |
+| `TestPrinter_PatternFilter` | Rows not matching the pattern are absent from output                                                                      |
 
 Use `bytes.Buffer` as the `io.Writer` target.
 
 ### pkg/util
 
-| Test | What to verify |
-|------|---------------|
-| `TestGetter_CustomKinds` | Passing `kinds="configmap"` restricts the resource list to ConfigMaps only |
-| `TestGetter_UnknownKind` | An unrecognised kind logs an error and closes the channel cleanly |
+| Test                     | What to verify                                                                 |
+|--------------------------|--------------------------------------------------------------------------------|
+| `TestGetter_CustomKinds` | Passing `kinds="configmap"` restricts the resource list to ConfigMaps only     |
+| `TestGetter_UnknownKind` | An unrecognised kind logs an error and closes the channel cleanly              |
 
 Use `k8s.io/client-go/kubernetes/fake` to construct a fake clientset that returns
 pre-populated lists without hitting a real cluster.
 
 ### pkg/cache
 
-| Test | What to verify |
-|------|---------------|
+| Test                       | What to verify                                                       |
+|----------------------------|----------------------------------------------------------------------|
 | `TestKeyFor_Deterministic` | Same (context, namespace, kinds) always returns the same SHA-256 key |
-| `TestKeyFor_Unique` | Differing namespace or context produces a different key |
-| `TestReadWrite_RoundTrip` | Data written with `Write()` is recovered intact by `Read()` |
-| `TestRead_Expired` | `Read()` returns nil when `written_at + ttl < now` |
-| `TestRead_Missing` | `Read()` returns nil (not an error) when no file exists |
-| `TestWrite_Atomic` | Resulting file is valid JSON even under concurrent `Write()` calls |
+| `TestKeyFor_Unique`        | Differing namespace or context produces a different key              |
+| `TestReadWrite_RoundTrip`  | Data written with `Write()` is recovered intact by `Read()`          |
+| `TestRead_Expired`         | `Read()` returns nil when `written_at + ttl < now`                   |
+| `TestRead_Missing`         | `Read()` returns nil (not an error) when no file exists              |
+| `TestWrite_Atomic`         | Resulting file is valid JSON even under concurrent `Write()` calls   |
 
 ### Running tests against a live cluster (integration)
 
@@ -140,7 +140,7 @@ skipped in CI unless explicitly enabled.
 
 #### `ci.yml` — runs on every push and pull request to `master`
 
-```
+```yaml
 jobs:
   lint:    golangci-lint (staticcheck, errcheck, govet, gofmt)
   test:    go test -race -coverprofile=coverage.out ./...
@@ -151,7 +151,7 @@ Minimum Go version is pinned from `go.mod` via `actions/setup-go` with Go module
 
 #### `release.yml` — runs on git tag push matching `v*.*.*`
 
-```
+```yaml
 jobs:
   goreleaser:  uses GoReleaser to build cross-platform binaries and create a GitHub Release
 ```
@@ -177,11 +177,11 @@ Key settings:
 
 ### Release cadence
 
-| Branch / tag | Purpose |
-|---|---|
-| `master` | Integration branch; must always build and pass CI |
-| `develop` | Feature development (matches existing branch history) |
-| `v<major>.<minor>.<patch>` | Release tags; trigger the release pipeline |
+| Branch / tag               | Purpose                                               |
+|----------------------------|-------------------------------------------------------|
+| `master`                   | Integration branch; must always build and pass CI     |
+| `develop`                  | Feature development (matches existing branch history) |
+| `v<major>.<minor>.<patch>` | Release tags; trigger the release pipeline            |
 
 Versioning follows **semver**:
 
@@ -218,3 +218,15 @@ This tool talks to a live Kubernetes cluster through the current kubeconfig cont
 During development, test against a dedicated non-production namespace.
 The application cache (`~/.kube/ksearch/cache/`) stores command output locally.
 Be careful when validating cache behavior against live clusters.
+
+## Agent Orchestrator (ao) Session
+
+You are running inside an Agent Orchestrator managed workspace.
+Session metadata is updated automatically via shell wrappers.
+
+If automatic updates fail, you can manually update metadata:
+
+```bash
+~/.ao/bin/ao-metadata-helper.sh  # sourced automatically
+# Then call: update_ao_metadata <key> <value>
+```
