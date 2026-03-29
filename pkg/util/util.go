@@ -2,110 +2,96 @@ package util
 
 import (
 	"context"
-	"strings"
 
 	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
 )
 
-var resources = []string{
-	"Pods",
-	"ConfigMaps",
-	"Endpoints",
-	"Events",
-	"LimitRanges",
-	"Namespaces",
-	"PersistentVolumes",
-	"PersistentVolumeClaims",
-	"PodTemplates",
-	"ResourceQuotas",
-	"Secrets",
-	"Services",
-	"ServiceAccounts",
-	"DaemonSets",
-	"Deployments",
-	"ReplicaSets",
-	"StatefulSets",
-}
-
-func configuredResources(kinds string) []string {
-	if kinds == "" {
-		return append([]string(nil), resources...)
-	}
-
-	return strings.Split(kinds, ",")
+type FetchResult struct {
+	Kind     string
+	Resource interface{}
 }
 
 // Getter the
 // This should be go routine ready. Such that getter can be called via goroutines and over a channel the value can be passed to a switch type through with the respective printer can be called.
-func Getter(namespace string, clientset kubernetes.Interface, kinds string, c chan interface{}) {
+func Getter(namespace string, clientset kubernetes.Interface, restConfig *rest.Config, resources []ResourceMeta, c chan FetchResult) {
 	defer close(c)
 	ctx := context.Background()
-	var err error
-	var list interface{}
 
-	for _, resource := range configuredResources(kinds) {
-		switch resource {
-		case "Pods":
-			list, err = clientset.CoreV1().Pods(namespace).List(ctx, metav1.ListOptions{})
-			handleError(err, resource)
-		case "ConfigMaps":
-			list, err = clientset.CoreV1().ConfigMaps(namespace).List(ctx, metav1.ListOptions{})
-			handleError(err, resource)
-		case "Endpoints":
-			list, err = clientset.CoreV1().Endpoints(namespace).List(ctx, metav1.ListOptions{})
-			handleError(err, resource)
-		case "Events":
-			list, err = clientset.CoreV1().Events(namespace).List(ctx, metav1.ListOptions{})
-			handleError(err, resource)
-		case "LimitRanges":
-			list, err = clientset.CoreV1().LimitRanges(namespace).List(ctx, metav1.ListOptions{})
-			handleError(err, resource)
-		case "Namespaces":
-			list, err = clientset.CoreV1().Namespaces().List(ctx, metav1.ListOptions{})
-			handleError(err, resource)
-		case "PersistentVolumes":
-			list, err = clientset.CoreV1().PersistentVolumes().List(ctx, metav1.ListOptions{})
-			handleError(err, resource)
-		case "PersistentVolumeClaims":
-			list, err = clientset.CoreV1().PersistentVolumeClaims(namespace).List(ctx, metav1.ListOptions{})
-			handleError(err, resource)
-		case "PodTemplates":
-			list, err = clientset.CoreV1().PodTemplates(namespace).List(ctx, metav1.ListOptions{})
-			handleError(err, resource)
-		case "ResourceQuotas":
-			list, err = clientset.CoreV1().ResourceQuotas(namespace).List(ctx, metav1.ListOptions{})
-			handleError(err, resource)
-		case "Secrets":
-			list, err = clientset.CoreV1().Secrets(namespace).List(ctx, metav1.ListOptions{})
-			handleError(err, resource)
-		case "Services":
-			list, err = clientset.CoreV1().Services(namespace).List(ctx, metav1.ListOptions{})
-			handleError(err, resource)
-		case "ServiceAccounts":
-			list, err = clientset.CoreV1().ServiceAccounts(namespace).List(ctx, metav1.ListOptions{})
-			handleError(err, resource)
+	for _, meta := range resources {
+		var (
+			err  error
+			list interface{}
+		)
 
-		// these will be from the AppsV1
-		case "DaemonSets":
-			list, err = clientset.AppsV1().DaemonSets(namespace).List(ctx, metav1.ListOptions{})
-			handleError(err, resource)
-		case "Deployments":
-			list, err = clientset.AppsV1().Deployments(namespace).List(ctx, metav1.ListOptions{})
-			handleError(err, resource)
-		case "ReplicaSets":
-			list, err = clientset.AppsV1().ReplicaSets(namespace).List(ctx, metav1.ListOptions{})
-			handleError(err, resource)
-		case "StatefulSets":
-			list, err = clientset.AppsV1().StatefulSets(namespace).List(ctx, metav1.ListOptions{})
-			handleError(err, resource)
-		default:
-			log.Error("Given kind is not supported")
-			return
+		canonical := canonicalResourceName(meta.Kind, meta.Resource)
+		if canonical != "" && endpointMatchesTyped(meta, canonical) {
+			switch canonical {
+			case "pods":
+				list, err = clientset.CoreV1().Pods(namespace).List(ctx, metav1.ListOptions{})
+				handleError(err, meta.Kind)
+			case "configmaps":
+				list, err = clientset.CoreV1().ConfigMaps(namespace).List(ctx, metav1.ListOptions{})
+				handleError(err, meta.Kind)
+			case "endpoints":
+				list, err = clientset.CoreV1().Endpoints(namespace).List(ctx, metav1.ListOptions{})
+				handleError(err, meta.Kind)
+			case "events":
+				list, err = clientset.CoreV1().Events(namespace).List(ctx, metav1.ListOptions{})
+				handleError(err, meta.Kind)
+			case "limitranges":
+				list, err = clientset.CoreV1().LimitRanges(namespace).List(ctx, metav1.ListOptions{})
+				handleError(err, meta.Kind)
+			case "namespaces":
+				list, err = clientset.CoreV1().Namespaces().List(ctx, metav1.ListOptions{})
+				handleError(err, meta.Kind)
+			case "persistentvolumes":
+				list, err = clientset.CoreV1().PersistentVolumes().List(ctx, metav1.ListOptions{})
+				handleError(err, meta.Kind)
+			case "persistentvolumeclaims":
+				list, err = clientset.CoreV1().PersistentVolumeClaims(namespace).List(ctx, metav1.ListOptions{})
+				handleError(err, meta.Kind)
+			case "podtemplates":
+				list, err = clientset.CoreV1().PodTemplates(namespace).List(ctx, metav1.ListOptions{})
+				handleError(err, meta.Kind)
+			case "resourcequotas":
+				list, err = clientset.CoreV1().ResourceQuotas(namespace).List(ctx, metav1.ListOptions{})
+				handleError(err, meta.Kind)
+			case "secrets":
+				list, err = clientset.CoreV1().Secrets(namespace).List(ctx, metav1.ListOptions{})
+				handleError(err, meta.Kind)
+			case "services":
+				list, err = clientset.CoreV1().Services(namespace).List(ctx, metav1.ListOptions{})
+				handleError(err, meta.Kind)
+			case "serviceaccounts":
+				list, err = clientset.CoreV1().ServiceAccounts(namespace).List(ctx, metav1.ListOptions{})
+				handleError(err, meta.Kind)
+			case "daemonsets":
+				list, err = clientset.AppsV1().DaemonSets(namespace).List(ctx, metav1.ListOptions{})
+				handleError(err, meta.Kind)
+			case "deployments":
+				list, err = clientset.AppsV1().Deployments(namespace).List(ctx, metav1.ListOptions{})
+				handleError(err, meta.Kind)
+			case "replicasets":
+				list, err = clientset.AppsV1().ReplicaSets(namespace).List(ctx, metav1.ListOptions{})
+				handleError(err, meta.Kind)
+			case "statefulsets":
+				list, err = clientset.AppsV1().StatefulSets(namespace).List(ctx, metav1.ListOptions{})
+				handleError(err, meta.Kind)
+			}
+		} else {
+			var dynamicList interface{}
+			unstructuredList, listErr := listUnstructuredResource(ctx, restConfig, namespace, meta)
+			if unstructuredList != nil {
+				dynamicList = unstructuredList
+			}
+			list, err = dynamicList, listErr
+			handleError(err, meta.Kind)
 		}
 
-		c <- list
+		c <- FetchResult{Kind: meta.Kind, Resource: list}
 	}
 }
 
