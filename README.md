@@ -1,53 +1,103 @@
-# ksearch
-A kubectl plugin that will help us list all (literally all) the resources in a namespace and the resources can be searched using names as well.
-Right now the resources that are in apps/v1 and core/v1 resouce groups are being printed.
+# 🔎 ksearch
 
-For now we have two main functionalitites in the pugin
+> Search your Kubernetes resources like you mean it.
 
-# List The resources 
-Listing the resources using standard `kubectl get` doesnt give us all the resources that are there in the cluster, for example ingresses and configmaps. Listing the resources using `kubectl search` will list all the resources of a namespace. Example command would be
-```
-kubectl search 
-```
-and it will list all the resources in all the namespaces. To list all the resources from a specific namespace you can use below command
-```
-kubectl search -n <ns-name>
-```
+[![CI](https://img.shields.io/github/actions/workflow/status/arush-sal/ksearch/ci.yml?branch=master&label=CI)](https://github.com/arush-sal/ksearch/actions)
+[![Release](https://img.shields.io/github/v/release/arush-sal/ksearch)](https://github.com/arush-sal/ksearch/releases)
+[![Go Version](https://img.shields.io/github/go-mod/go-version/arush-sal/ksearch)](./go.mod)
+[![License](https://img.shields.io/github/license/arush-sal/ksearch)](./LICENSE)
 
-# Filter the resources 
-Now that we have all the resources from all the namespaces or from a specific namespace, we can filter the resoureces by giving a substring of the resource name, for example the below command 
-```
-kubectl search -name <res-name>
-```
-will list all the resources from all the namespaces if their name contains the string `res-name`. We can provide an options `-n` parameter to do the same in for a specific namespave.
+`ksearch` is a kubectl plugin for cluster-wide resource discovery when `kubectl get` is too narrow. Search by name pattern, limit by kinds, scope by namespace, and reuse cached results for faster repeated lookups. ⚡
 
-# Specify the kinds that you want list
-There are chances that you want some extra resources listed along with the resources that gets listed when we `kubectl get` but not all. `kubectl search` lists a lot of resources that you might not want to see, now you can alos specify the kinds that you want to see along with the basic resources that get displayed when we use `kubectl get`.
-For example to get all the basic resources (that get displayed when we use `kubectl get`) and some extra resources (`configmaps` and `secret`) from `kube-system` namespace we can use 
-```
-kubectl search -n kube-system -kinds configmaps,secret
-```
-We can alwasy use `-name` flag to filter the only resources that match the provided value. For example below command 
-```
-kubectl search -n kube-system -kinds configmap,secret,serviceaccount -name nginx
-```
-will list all the basic resources (that we get from `kubectl get`), configmaps, secrets and serviceaccounts from the `kube-system` namespace that have `nginx` in their name.
+[Install with Krew](#installation) • [Download a release](#installation) • [See examples](#examples)
 
-# Getting Help
-You can run below command to get the list of supported flags.
-```
-kubectl search -h
+## ✨ Features
+
+- 🔍 Search resources by name pattern
+- 📦 Filter results by selected kinds
+- 🧭 Scope to a namespace or search broadly
+- 🧠 Discover supported resources dynamically from the cluster
+- ⚡ Reuse cached output with TTL control
+- 🚀 Install via Krew, GitHub Releases, or source build
+
+## 🚀 Installation
+
+### Krew
+
+```bash
+kubectl krew install ksearch
 ```
 
-# Why ksearch
-There are some situations when you would to know whether the configmaps/secrets that are being referred by the are there in the cluster or not, or the sevice has the respective endpoints created or not. If you use `kubectl get` utility you will have to get the secrets and configmaps separately, but using `ksearch` will list all the resources at once in one place. Similarly lets say you want to get all the resource that are deploys as part of `nginx` deployment, they will most probably have name `nginx` in them. You can just search for all those resources using the below command
-```
-kubectl search -name  <res-name>
-```
-if you know the namespace you can append that using `-n` flag.
+### GitHub Releases
 
-# Installation 
-//TODO, add to kubectl krew plugin repo
+Download the latest archive from:
+`https://github.com/arush-sal/ksearch/releases`
 
-# Demo
-//TODO
+### Build from source
+
+```bash
+git clone https://github.com/arush-sal/ksearch.git
+cd ksearch
+make build
+./ksearch --help
+```
+
+## ⚙️ Quick Start
+
+```bash
+kubectl ksearch
+kubectl ksearch -n kube-system
+kubectl ksearch -n kube-system -p nginx
+```
+
+## 🎯 Examples
+
+Search within one namespace:
+
+```bash
+kubectl ksearch -n default
+```
+
+Find resources related to one workload:
+
+```bash
+kubectl ksearch -n prod -p nginx
+```
+
+Limit output to selected kinds:
+
+```bash
+kubectl ksearch -n prod -k deployment,service,configmap,secret
+```
+
+Skip cache for a fresh read:
+
+```bash
+kubectl ksearch --no-cache
+```
+
+## 🛠 Flags
+
+| Flag | Description |
+|---|---|
+| `-n, --namespace` | Namespace to search |
+| `-p, --pattern` | Match resource names by substring |
+| `-k, --kinds` | Comma-separated kinds or resources to include |
+| `--cache-ttl` | Cache TTL, defaults to `1m` |
+| `--no-cache` | Skip cached output |
+
+Environment override:
+
+```bash
+export KSEARCH_CACHE_TTL=30s
+```
+
+## 📝 Notes
+
+- Resource discovery depends on what the current cluster exposes.
+- Cached output is stored locally and reused until the TTL expires.
+- Use `--no-cache` when you need a fully fresh read.
+
+## 🤝 Contributing
+
+Contributor-facing documentation lives in `CONTRIBUTION.md`.
