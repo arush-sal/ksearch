@@ -22,7 +22,7 @@ func TestGetter_CustomKinds(t *testing.T) {
 	results := make(chan interface{})
 
 	go Getter("default", clientset, []ResourceMeta{
-		{Kind: "ConfigMaps", Resource: "configmaps", Namespaced: true},
+		{Kind: "ConfigMap", Resource: "configmaps", Namespaced: true},
 	}, results)
 
 	var received []interface{}
@@ -76,7 +76,7 @@ func TestGetter_ChannelAlwaysClosed(t *testing.T) {
 	results := make(chan interface{})
 
 	go Getter("default", clientset, []ResourceMeta{
-		{Kind: "Pods", Resource: "pods", Namespaced: true},
+		{Kind: "Pod", Resource: "pods", Namespaced: true},
 	}, results)
 
 	done := make(chan struct{})

@@ -39,7 +39,10 @@ func Discover(dc discovery.DiscoveryInterface, kinds string) ([]ResourceMeta, er
 			if !hasVerb(resource.Verbs, "list") {
 				continue
 			}
-			if len(filter) > 0 && !filter[strings.ToLower(resource.Kind)] {
+			if _, ok := canonicalResourceName(resource.Kind, resource.Name); !ok {
+				continue
+			}
+			if !matchesKindsFilter(filter, resource.Kind, resource.Name) {
 				continue
 			}
 
@@ -81,4 +84,90 @@ func hasVerb(verbs []string, target string) bool {
 	}
 
 	return false
+}
+
+func matchesKindsFilter(filter map[string]bool, kind, resource string) bool {
+	if len(filter) == 0 {
+		return true
+	}
+
+	return filter[strings.ToLower(kind)] || filter[strings.ToLower(resource)]
+}
+
+func canonicalResourceName(kind, resource string) (string, bool) {
+	switch strings.ToLower(strings.TrimSpace(resource)) {
+	case "pods":
+		return "pods", true
+	case "configmaps":
+		return "configmaps", true
+	case "endpoints":
+		return "endpoints", true
+	case "events":
+		return "events", true
+	case "limitranges":
+		return "limitranges", true
+	case "namespaces":
+		return "namespaces", true
+	case "persistentvolumes":
+		return "persistentvolumes", true
+	case "persistentvolumeclaims":
+		return "persistentvolumeclaims", true
+	case "podtemplates":
+		return "podtemplates", true
+	case "resourcequotas":
+		return "resourcequotas", true
+	case "secrets":
+		return "secrets", true
+	case "services":
+		return "services", true
+	case "serviceaccounts":
+		return "serviceaccounts", true
+	case "daemonsets":
+		return "daemonsets", true
+	case "deployments":
+		return "deployments", true
+	case "replicasets":
+		return "replicasets", true
+	case "statefulsets":
+		return "statefulsets", true
+	}
+
+	switch strings.ToLower(strings.TrimSpace(kind)) {
+	case "pod", "pods":
+		return "pods", true
+	case "configmap", "configmaps":
+		return "configmaps", true
+	case "endpoint", "endpoints":
+		return "endpoints", true
+	case "event", "events":
+		return "events", true
+	case "limitrange", "limitranges":
+		return "limitranges", true
+	case "namespace", "namespaces":
+		return "namespaces", true
+	case "persistentvolume", "persistentvolumes":
+		return "persistentvolumes", true
+	case "persistentvolumeclaim", "persistentvolumeclaims":
+		return "persistentvolumeclaims", true
+	case "podtemplate", "podtemplates":
+		return "podtemplates", true
+	case "resourcequota", "resourcequotas":
+		return "resourcequotas", true
+	case "secret", "secrets":
+		return "secrets", true
+	case "service", "services":
+		return "services", true
+	case "serviceaccount", "serviceaccounts":
+		return "serviceaccounts", true
+	case "daemonset", "daemonsets":
+		return "daemonsets", true
+	case "deployment", "deployments":
+		return "deployments", true
+	case "replicaset", "replicasets":
+		return "replicasets", true
+	case "statefulset", "statefulsets":
+		return "statefulsets", true
+	}
+
+	return "", false
 }
