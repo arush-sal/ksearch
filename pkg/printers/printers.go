@@ -1,6 +1,7 @@
 package printers
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"strings"
@@ -23,247 +24,290 @@ func flushTabWriter(tabWriter *tabwriter.Writer) {
 	_ = tabWriter.Flush()
 }
 
+func writeSectionIfMatched(w io.Writer, title, divider string, render func(*tabwriter.Writer) int) {
+	var body bytes.Buffer
+	tabWriter := tabwriter.NewWriter(&body, 0, 0, 1, ' ', 0)
+	rows := render(tabWriter)
+	if rows == 0 {
+		return
+	}
+
+	flushTabWriter(tabWriter)
+	writef(w, "\n%s\n%s\n", title, divider)
+	_, _ = io.Copy(w, &body)
+}
+
 func printPodDetails(w io.Writer, pods *v1.PodList, pattern string) {
 	if len(pods.Items) > 0 {
-		writef(w, "\nPods\n----\n")
-		tabWriter := tabwriter.NewWriter(w, 0, 0, 1, ' ', 0)
-		writef(tabWriter, "%v\t%v\t%v\t%v\n", "NAME", "READY", "STATUS", "RESTARTS")
-
-		for _, pod := range pods.Items {
-			if !matchesPattern(pod.Name, pattern) {
-				continue
+		writeSectionIfMatched(w, "Pods", "----", func(tabWriter *tabwriter.Writer) int {
+			rows := 0
+			writef(tabWriter, "%v\t%v\t%v\t%v\n", "NAME", "READY", "STATUS", "RESTARTS")
+			for _, pod := range pods.Items {
+				if !matchesPattern(pod.Name, pattern) {
+					continue
+				}
+				rows++
+				writef(tabWriter, "%v\t%v\t%v\t%v\n", pod.Name, "", pod.Status.Phase, "")
 			}
-
-			writef(tabWriter, "%v\t%v\t%v\t%v\n", pod.Name, "", pod.Status.Phase, "")
-		}
-		flushTabWriter(tabWriter)
+			return rows
+		})
 	}
 }
 func printPodTemplates(w io.Writer, podTemplates *v1.PodTemplateList, pattern string) {
 	if len(podTemplates.Items) > 0 {
-		writef(w, "\nPodTemplates\n--------------\n")
-		tabWriter := tabwriter.NewWriter(w, 0, 0, 1, ' ', 0)
-		writef(tabWriter, "%v\n", "NAME")
-		for _, podTemplate := range podTemplates.Items {
-			if !matchesPattern(podTemplate.Name, pattern) {
-				continue
+		writeSectionIfMatched(w, "PodTemplates", "--------------", func(tabWriter *tabwriter.Writer) int {
+			rows := 0
+			writef(tabWriter, "%v\n", "NAME")
+			for _, podTemplate := range podTemplates.Items {
+				if !matchesPattern(podTemplate.Name, pattern) {
+					continue
+				}
+				rows++
+				writef(tabWriter, "%v\n", podTemplate.Name)
 			}
-			writef(tabWriter, "%v\n", podTemplate.Name)
-		}
-		flushTabWriter(tabWriter)
+			return rows
+		})
 	}
 }
 func printConfigMaps(w io.Writer, cms *v1.ConfigMapList, pattern string) {
 	if len(cms.Items) > 0 {
-		writef(w, "\nConfigMaps\n--------------\n")
-		tabWriter := tabwriter.NewWriter(w, 0, 0, 1, ' ', 0)
-		writef(tabWriter, "%v\t%v\t%v\n", "NAME", "DATA", "AGE")
-		for _, configMap := range cms.Items {
-			if !matchesPattern(configMap.Name, pattern) {
-				continue
+		writeSectionIfMatched(w, "ConfigMaps", "--------------", func(tabWriter *tabwriter.Writer) int {
+			rows := 0
+			writef(tabWriter, "%v\t%v\t%v\n", "NAME", "DATA", "AGE")
+			for _, configMap := range cms.Items {
+				if !matchesPattern(configMap.Name, pattern) {
+					continue
+				}
+				rows++
+				writef(tabWriter, "%v\t%v\t%v\n", configMap.Name, len(configMap.Data), "")
 			}
-			writef(tabWriter, "%v\t%v\t%v\n", configMap.Name, len(configMap.Data), "")
-		}
-		flushTabWriter(tabWriter)
+			return rows
+		})
 	}
 }
 func printEndpoints(w io.Writer, endPoints *v1.EndpointsList, pattern string) {
 	if len(endPoints.Items) > 0 {
-		writef(w, "\nEndpoints\n--------------\n")
-		tabWriter := tabwriter.NewWriter(w, 0, 0, 1, ' ', 0)
-		writef(tabWriter, "%v\t%v\t%v\n", "NAME", "ENDPOINTS", "AGE")
-		for _, endpoint := range endPoints.Items {
-			if !matchesPattern(endpoint.Name, pattern) {
-				continue
+		writeSectionIfMatched(w, "Endpoints", "--------------", func(tabWriter *tabwriter.Writer) int {
+			rows := 0
+			writef(tabWriter, "%v\t%v\t%v\n", "NAME", "ENDPOINTS", "AGE")
+			for _, endpoint := range endPoints.Items {
+				if !matchesPattern(endpoint.Name, pattern) {
+					continue
+				}
+				rows++
+				writef(tabWriter, "%v\t%v\t%v\n", endpoint.Name, "", "")
 			}
-			writef(tabWriter, "%v\t%v\t%v\n", endpoint.Name, "", "")
-		}
-		flushTabWriter(tabWriter)
+			return rows
+		})
 	}
 }
 func printEvents(w io.Writer, events *v1.EventList, pattern string) {
 	if len(events.Items) > 0 {
-		writef(w, "\nEvents\n--------------\n")
-		tabWriter := tabwriter.NewWriter(w, 0, 0, 1, ' ', 0)
-		writef(tabWriter, "%v\t%v\t%v\t%v\t%v\t%v\n", "NAMESPACE", "LAST SEEN", "TYPE", "REASON", "OBJECT", "MESSAGE")
-		for _, event := range events.Items {
-			if !matchesPattern(event.Name, pattern) {
-				continue
+		writeSectionIfMatched(w, "Events", "--------------", func(tabWriter *tabwriter.Writer) int {
+			rows := 0
+			writef(tabWriter, "%v\t%v\t%v\t%v\t%v\t%v\n", "NAMESPACE", "LAST SEEN", "TYPE", "REASON", "OBJECT", "MESSAGE")
+			for _, event := range events.Items {
+				if !matchesPattern(event.Name, pattern) {
+					continue
+				}
+				rows++
+				writef(tabWriter, "%v\t%v\t%v\t%v\t%v\t%v\n", event.Namespace, "", event.Type, "", event.InvolvedObject.Kind+"/"+event.InvolvedObject.Name, event.Message)
 			}
-			writef(tabWriter, "%v\t%v\t%v\t%v\t%v\t%v\n", event.Namespace, "", event.Type, "", event.InvolvedObject.Kind+"/"+event.InvolvedObject.Name, event.Message)
-		}
-		flushTabWriter(tabWriter)
+			return rows
+		})
 	}
 }
 func printLimitRanges(w io.Writer, limitRanges *v1.LimitRangeList, pattern string) {
 	if len(limitRanges.Items) > 0 {
-		writef(w, "\nLimitRanges\n--------------\n")
-		tabWriter := tabwriter.NewWriter(w, 0, 0, 1, ' ', 0)
-		writef(tabWriter, "%v\t%v\n", "NAME", "CREATED AT")
-		for _, limitRange := range limitRanges.Items {
-			if !matchesPattern(limitRange.Name, pattern) {
-				continue
+		writeSectionIfMatched(w, "LimitRanges", "--------------", func(tabWriter *tabwriter.Writer) int {
+			rows := 0
+			writef(tabWriter, "%v\t%v\n", "NAME", "CREATED AT")
+			for _, limitRange := range limitRanges.Items {
+				if !matchesPattern(limitRange.Name, pattern) {
+					continue
+				}
+				rows++
+				writef(tabWriter, "%v\t%v\n", limitRange.Name, limitRange.CreationTimestamp)
 			}
-			writef(tabWriter, "%v\t%v\n", limitRange.Name, limitRange.CreationTimestamp)
-		}
-		flushTabWriter(tabWriter)
+			return rows
+		})
 	}
 }
 func printNamespaces(w io.Writer, namespaces *v1.NamespaceList, pattern string) {
 	if len(namespaces.Items) > 0 {
-		writef(w, "\nNamespaces\n--------------\n")
-		tabWriter := tabwriter.NewWriter(w, 0, 0, 1, ' ', 0)
-		writef(tabWriter, "%v\t%v\t%v\n", "NAME", "STATUS", "AGE")
-		for _, namespace := range namespaces.Items {
-			if !matchesPattern(namespace.Name, pattern) {
-				continue
+		writeSectionIfMatched(w, "Namespaces", "--------------", func(tabWriter *tabwriter.Writer) int {
+			rows := 0
+			writef(tabWriter, "%v\t%v\t%v\n", "NAME", "STATUS", "AGE")
+			for _, namespace := range namespaces.Items {
+				if !matchesPattern(namespace.Name, pattern) {
+					continue
+				}
+				rows++
+				writef(tabWriter, "%v\t%v\t%v\n", namespace.Name, namespace.Status, "")
 			}
-			writef(tabWriter, "%v\t%v\t%v\n", namespace.Name, namespace.Status, "")
-		}
-		flushTabWriter(tabWriter)
+			return rows
+		})
 	}
 }
 func printPVs(w io.Writer, pvs *v1.PersistentVolumeList, pattern string) {
 	if len(pvs.Items) > 0 {
-		writef(w, "\nPersistentVolumes\n--------------\n")
-		tabWriter := tabwriter.NewWriter(w, 0, 0, 1, ' ', 0)
-		writef(tabWriter, "%v\t%v\t%v\t%v\t%v\t%v\t%v\t%v\t%v\n", "NAME", "CAPACITY", "ACCESS MODES", "RECLAIM POLICY", "STATUS", "CLAIM", "STORAGECLASS", "REASON", "AGE")
-
-		for _, pv := range pvs.Items {
-			if !matchesPattern(pv.Name, pattern) {
-				continue
+		writeSectionIfMatched(w, "PersistentVolumes", "--------------", func(tabWriter *tabwriter.Writer) int {
+			rows := 0
+			writef(tabWriter, "%v\t%v\t%v\t%v\t%v\t%v\t%v\t%v\t%v\n", "NAME", "CAPACITY", "ACCESS MODES", "RECLAIM POLICY", "STATUS", "CLAIM", "STORAGECLASS", "REASON", "AGE")
+			for _, pv := range pvs.Items {
+				if !matchesPattern(pv.Name, pattern) {
+					continue
+				}
+				rows++
+				writef(tabWriter, "%v\t%v\t%v\t%v\t%v\t%v\t%v\t%v\t%v\n", pv.Name, "", pv.Spec.AccessModes, pv.Spec.PersistentVolumeReclaimPolicy, pv.Status, pv.Spec.ClaimRef.Namespace+"/"+pv.Spec.ClaimRef.Name, pv.Spec.StorageClassName, pv.Status.Reason, "")
 			}
-			writef(tabWriter, "%v\t%v\t%v\t%v\t%v\t%v\t%v\t%v\t%v\n", pv.Name, "", pv.Spec.AccessModes, pv.Spec.PersistentVolumeReclaimPolicy, pv.Status, pv.Spec.ClaimRef.Namespace+"/"+pv.Spec.ClaimRef.Name, pv.Spec.StorageClassName, pv.Status.Reason, "")
-		}
-		flushTabWriter(tabWriter)
+			return rows
+		})
 	}
 }
 func printPVCs(w io.Writer, pvcs *v1.PersistentVolumeClaimList, pattern string) {
 	if len(pvcs.Items) > 0 {
-		writef(w, "\nPersistentVolumeClaims\n--------------\n")
-		tabWriter := tabwriter.NewWriter(w, 0, 0, 1, ' ', 0)
-		writef(tabWriter, "%v\t%v\t%v\t%v\t%v\t%v\t%v\n", "NAME", "STATUS", "VOLUME", "CAPACITY", "ACCESS MODES", "STORAGECLASS", "AGE")
-		for _, pvc := range pvcs.Items {
-			if !matchesPattern(pvc.Name, pattern) {
-				continue
+		writeSectionIfMatched(w, "PersistentVolumeClaims", "--------------", func(tabWriter *tabwriter.Writer) int {
+			rows := 0
+			writef(tabWriter, "%v\t%v\t%v\t%v\t%v\t%v\t%v\n", "NAME", "STATUS", "VOLUME", "CAPACITY", "ACCESS MODES", "STORAGECLASS", "AGE")
+			for _, pvc := range pvcs.Items {
+				if !matchesPattern(pvc.Name, pattern) {
+					continue
+				}
+				rows++
+				writef(tabWriter, "%v\t%v\t%v\t%v\t%v\t%v\t%v\n", pvc.Name, pvc.Status, "", pvc.Status.Capacity.Cpu(), pvc.Spec.AccessModes, pvc.Spec.StorageClassName, "")
 			}
-			writef(tabWriter, "%v\t%v\t%v\t%v\t%v\t%v\t%v\n", pvc.Name, pvc.Status, "", pvc.Status.Capacity.Cpu(), pvc.Spec.AccessModes, pvc.Spec.StorageClassName, "")
-		}
-		flushTabWriter(tabWriter)
+			return rows
+		})
 	}
 }
 
 func printResourceQuotas(w io.Writer, resQuotas *v1.ResourceQuotaList, pattern string) {
 	if len(resQuotas.Items) > 0 {
-		writef(w, "\nResourceQuotas\n--------------\n")
-		tabWriter := tabwriter.NewWriter(w, 0, 0, 1, ' ', 0)
-		writef(tabWriter, "%v\t%v\n", "NAME", "CREATED AT")
-		for _, resQ := range resQuotas.Items {
-			if !matchesPattern(resQ.Name, pattern) {
-				continue
+		writeSectionIfMatched(w, "ResourceQuotas", "--------------", func(tabWriter *tabwriter.Writer) int {
+			rows := 0
+			writef(tabWriter, "%v\t%v\n", "NAME", "CREATED AT")
+			for _, resQ := range resQuotas.Items {
+				if !matchesPattern(resQ.Name, pattern) {
+					continue
+				}
+				rows++
+				writef(tabWriter, "%v\t%v\n", resQ.Name, resQ.CreationTimestamp)
 			}
-			writef(tabWriter, "%v\t%v\n", resQ.Name, resQ.CreationTimestamp)
-		}
-		flushTabWriter(tabWriter)
+			return rows
+		})
 	}
 }
 func printSecrets(w io.Writer, secrets *v1.SecretList, pattern string) {
 	if len(secrets.Items) > 0 {
-		writef(w, "\nSecrets\n--------------\n")
-		tabWriter := tabwriter.NewWriter(w, 0, 0, 1, ' ', 0)
-		writef(tabWriter, "%v\t%v\t%v\t%v\n", "NAME", "TYPE", "DATA", "AGE")
-		for _, secret := range secrets.Items {
-			if !matchesPattern(secret.Name, pattern) {
-				continue
+		writeSectionIfMatched(w, "Secrets", "--------------", func(tabWriter *tabwriter.Writer) int {
+			rows := 0
+			writef(tabWriter, "%v\t%v\t%v\t%v\n", "NAME", "TYPE", "DATA", "AGE")
+			for _, secret := range secrets.Items {
+				if !matchesPattern(secret.Name, pattern) {
+					continue
+				}
+				rows++
+				writef(tabWriter, "%v\t%v\t%v\t%v\n", secret.Name, secret.Type, len(secret.Data), "")
 			}
-			writef(tabWriter, "%v\t%v\t%v\t%v\n", secret.Name, secret.Type, len(secret.Data), "")
-		}
-		flushTabWriter(tabWriter)
+			return rows
+		})
 	}
 }
 func printServices(w io.Writer, services *v1.ServiceList, pattern string) {
 	if len(services.Items) > 0 {
-		writef(w, "\nServices\n--------------\n")
-		tabWriter := tabwriter.NewWriter(w, 0, 0, 1, ' ', 0)
-		writef(tabWriter, "%v\t%v\t%v\t%v\t%v\t%v\n", "NAME", "TYPE", "CLUSTER-IP", "EXTERNAL-IP", "PORT(S)", "AGE")
-
-		for _, service := range services.Items {
-			if !matchesPattern(service.Name, pattern) {
-				continue
+		writeSectionIfMatched(w, "Services", "--------------", func(tabWriter *tabwriter.Writer) int {
+			rows := 0
+			writef(tabWriter, "%v\t%v\t%v\t%v\t%v\t%v\n", "NAME", "TYPE", "CLUSTER-IP", "EXTERNAL-IP", "PORT(S)", "AGE")
+			for _, service := range services.Items {
+				if !matchesPattern(service.Name, pattern) {
+					continue
+				}
+				rows++
+				writef(tabWriter, "%v\t%v\t%v\t%v\t%v\t%v\n", service.Name, service.Spec.Type, service.Spec.ClusterIP, service.Spec.ExternalIPs, service.Spec.Ports, "")
 			}
-			writef(tabWriter, "%v\t%v\t%v\t%v\t%v\t%v\n", service.Name, service.Spec.Type, service.Spec.ClusterIP, service.Spec.ExternalIPs, service.Spec.Ports, "")
-		}
-		flushTabWriter(tabWriter)
+			return rows
+		})
 	}
 }
 func printServiceAccounts(w io.Writer, serviceAccs *v1.ServiceAccountList, pattern string) {
 	if len(serviceAccs.Items) > 0 {
-		writef(w, "\nServiceAccounts\n--------------\n")
-		tabWriter := tabwriter.NewWriter(w, 0, 0, 1, ' ', 0)
-		writef(tabWriter, "%v\t%v\t%v\n", "NAME", "SECRETS", "AGE")
-		for _, serviceAcc := range serviceAccs.Items {
-			if !matchesPattern(serviceAcc.Name, pattern) {
-				continue
+		writeSectionIfMatched(w, "ServiceAccounts", "--------------", func(tabWriter *tabwriter.Writer) int {
+			rows := 0
+			writef(tabWriter, "%v\t%v\t%v\n", "NAME", "SECRETS", "AGE")
+			for _, serviceAcc := range serviceAccs.Items {
+				if !matchesPattern(serviceAcc.Name, pattern) {
+					continue
+				}
+				rows++
+				writef(tabWriter, "%v\t%v\t%v\n", serviceAcc.Name, len(serviceAcc.Secrets), "")
 			}
-			writef(tabWriter, "%v\t%v\t%v\n", serviceAcc.Name, len(serviceAcc.Secrets), "")
-		}
-		flushTabWriter(tabWriter)
+			return rows
+		})
 	}
 }
 func printDaemonSets(w io.Writer, daemonsets *appsv1.DaemonSetList, pattern string) {
 	if len(daemonsets.Items) > 0 {
-		writef(w, "\nDaemonSets\n--------------\n")
-		tabWriter := tabwriter.NewWriter(w, 0, 0, 1, ' ', 0)
-		writef(tabWriter, "%v\t%v\t%v\t%v\t%v\t%v\t%v\t%v\t%v\n", "NAMESPACE", "NAME", "DESIRED", "CURRENT", "READY", "UP-TO-DATE", "AVAILABLE", "NODE SELECTOR", "AGE")
-		for _, ds := range daemonsets.Items {
-			if !matchesPattern(ds.Name, pattern) {
-				continue
+		writeSectionIfMatched(w, "DaemonSets", "--------------", func(tabWriter *tabwriter.Writer) int {
+			rows := 0
+			writef(tabWriter, "%v\t%v\t%v\t%v\t%v\t%v\t%v\t%v\t%v\n", "NAMESPACE", "NAME", "DESIRED", "CURRENT", "READY", "UP-TO-DATE", "AVAILABLE", "NODE SELECTOR", "AGE")
+			for _, ds := range daemonsets.Items {
+				if !matchesPattern(ds.Name, pattern) {
+					continue
+				}
+				rows++
+				writef(tabWriter, "%v\t%v\t%v\t%v\t%v\t%v\t%v\t%v\t%v\n", ds.Namespace, ds.Name, ds.Status.DesiredNumberScheduled, ds.Status.CurrentNumberScheduled, ds.Status.NumberReady, "", ds.Status.NumberAvailable, ds.Spec.Template.Spec.NodeSelector, "")
 			}
-			writef(tabWriter, "%v\t%v\t%v\t%v\t%v\t%v\t%v\t%v\t%v\n", ds.Namespace, ds.Name, ds.Status.DesiredNumberScheduled, ds.Status.CurrentNumberScheduled, ds.Status.NumberReady, "", ds.Status.NumberAvailable, ds.Spec.Template.Spec.NodeSelector, "")
-		}
-		flushTabWriter(tabWriter)
+			return rows
+		})
 	}
 }
 func printDeployments(w io.Writer, deployments *appsv1.DeploymentList, pattern string) {
 	if len(deployments.Items) > 0 {
-		writef(w, "\nDeployments\n--------------\n")
-		tabWriter := tabwriter.NewWriter(w, 0, 0, 1, ' ', 0)
-		writef(tabWriter, "%v\t%v\t%v\t%v\t%v\n", "NAME", "READY", "UP-TO-DATE", "AVAILABLE", "AGE")
-		for _, deployment := range deployments.Items {
-			if !matchesPattern(deployment.Name, pattern) {
-				continue
+		writeSectionIfMatched(w, "Deployments", "--------------", func(tabWriter *tabwriter.Writer) int {
+			rows := 0
+			writef(tabWriter, "%v\t%v\t%v\t%v\t%v\n", "NAME", "READY", "UP-TO-DATE", "AVAILABLE", "AGE")
+			for _, deployment := range deployments.Items {
+				if !matchesPattern(deployment.Name, pattern) {
+					continue
+				}
+				rows++
+				writef(tabWriter, "%v\t%v\t%v\t%v\t%v\n", deployment.Name, deployment.Status.ReadyReplicas, "", deployment.Status.AvailableReplicas, "")
 			}
-			writef(tabWriter, "%v\t%v\t%v\t%v\t%v\n", deployment.Name, deployment.Status.ReadyReplicas, "", deployment.Status.AvailableReplicas, "")
-		}
-		flushTabWriter(tabWriter)
+			return rows
+		})
 	}
 }
 func printReplicaSets(w io.Writer, rsets *appsv1.ReplicaSetList, pattern string) {
 	if len(rsets.Items) > 0 {
-		writef(w, "\nReplicaSets\n--------------\n")
-		tabWriter := tabwriter.NewWriter(w, 0, 0, 1, ' ', 0)
-		writef(tabWriter, "%v\t%v\t%v\t%v\t%v\n", "NAME", "DESIRED", "CURRENT", "READY", "AGE")
-		for _, rs := range rsets.Items {
-			if !matchesPattern(rs.Name, pattern) {
-				continue
+		writeSectionIfMatched(w, "ReplicaSets", "--------------", func(tabWriter *tabwriter.Writer) int {
+			rows := 0
+			writef(tabWriter, "%v\t%v\t%v\t%v\t%v\n", "NAME", "DESIRED", "CURRENT", "READY", "AGE")
+			for _, rs := range rsets.Items {
+				if !matchesPattern(rs.Name, pattern) {
+					continue
+				}
+				rows++
+				writef(tabWriter, "%v\t%v\t%v\t%v\t%v\n", rs.Name, "", "", "", "")
 			}
-			writef(tabWriter, "%v\t%v\t%v\t%v\t%v\n", rs.Name, "", "", "", "")
-		}
-		flushTabWriter(tabWriter)
+			return rows
+		})
 	}
 }
 func printStateFulSets(w io.Writer, ssets *appsv1.StatefulSetList, pattern string) {
 	if len(ssets.Items) > 0 {
-		writef(w, "\nStatefulSets\n--------------\n")
-		tabWriter := tabwriter.NewWriter(w, 0, 0, 1, ' ', 0)
-		writef(tabWriter, "%v\t%v\t%v\n", "NAME", "READY", "AGE")
-		for _, sset := range ssets.Items {
-			if !matchesPattern(sset.Name, pattern) {
-				continue
+		writeSectionIfMatched(w, "StatefulSets", "--------------", func(tabWriter *tabwriter.Writer) int {
+			rows := 0
+			writef(tabWriter, "%v\t%v\t%v\n", "NAME", "READY", "AGE")
+			for _, sset := range ssets.Items {
+				if !matchesPattern(sset.Name, pattern) {
+					continue
+				}
+				rows++
+				writef(tabWriter, "%v\t%v\t%v\n", sset.Name, sset.Status.ReadyReplicas, "")
 			}
-			writef(tabWriter, "%v\t%v\t%v\n", sset.Name, sset.Status.ReadyReplicas, "")
-		}
-		flushTabWriter(tabWriter)
+			return rows
+		})
 	}
 }
 
@@ -277,16 +321,18 @@ func printUnstructuredList(w io.Writer, resources *unstructured.UnstructuredList
 		kind = "Resources"
 	}
 
-	writef(w, "\n%s\n--------------\n", kind)
-	tabWriter := tabwriter.NewWriter(w, 0, 0, 1, ' ', 0)
-	writef(tabWriter, "%v\t%v\n", "NAMESPACE", "NAME")
-	for _, resource := range resources.Items {
-		if !matchesPattern(resource.GetName(), pattern) {
-			continue
+	writeSectionIfMatched(w, kind, "--------------", func(tabWriter *tabwriter.Writer) int {
+		rows := 0
+		writef(tabWriter, "%v\t%v\n", "NAMESPACE", "NAME")
+		for _, resource := range resources.Items {
+			if !matchesPattern(resource.GetName(), pattern) {
+				continue
+			}
+			rows++
+			writef(tabWriter, "%v\t%v\n", resource.GetNamespace(), resource.GetName())
 		}
-		writef(tabWriter, "%v\t%v\n", resource.GetNamespace(), resource.GetName())
-	}
-	flushTabWriter(tabWriter)
+		return rows
+	})
 }
 
 func Printer(w io.Writer, resource interface{}, pattern string) {
