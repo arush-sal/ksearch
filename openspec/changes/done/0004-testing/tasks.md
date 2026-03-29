@@ -1,6 +1,6 @@
 # Tasks: Test Suite
 
-## Phase 1 — pkg/printers/printers_test.go (write now, before 0001)
+## Phase 1 — pkg/printers/printers_test.go (write after 0001, before 0006)
 - [ ] Add `captureOutput(f func()) string` helper using `os.Pipe()`
 - [ ] `TestPrintSecrets_NoSensitiveDataInOutput`
   - Construct `*v1.SecretList` with known sentinel values in `Data`

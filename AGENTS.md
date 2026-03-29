@@ -25,15 +25,18 @@ type `Getter()` can emit. **Adding a resource kind requires changes in both
 
 ### Planned upgrades (openspec/)
 
-Three changes are tracked and must be implemented in order:
+Pending changes live in `openspec/changes/`. Completed and merged changes are
+archived in `openspec/changes/done/`. When a change is merged, move its directory
+into `done/` and commit the move before starting the next change.
+
+**Currently pending:**
 
 | ID | Summary |
 |----|---------|
-| `0001-dependency-upgrade` | Go 1.13→1.22; k8s client-go v0.17→v0.32.x; add `context.Context` to all `.List()` calls; remove deprecated `ComponentStatuses` |
-| `0002-concurrent-printing` | Refactor `printers.go` to write to `io.Writer`; extract `matchesPattern` helper; fan-out goroutines with ordered flush |
-| `0003-application-caching` | New `pkg/cache` package; SHA-256 keyed disk cache under `~/.kube/ksearch/cache/`; `--cache-ttl` and `--no-cache` flags |
+| `0006-dynamic-resource-discovery` | Replace static resource lists with live `ServerPreferredResources()` discovery; expose `Discover()` from `pkg/util`; remove duplication between `pkg/util/util.go` and `cmd/ksearch.go` |
 
 Full proposals, designs, and task checklists are in `openspec/changes/<id>/`.
+Completed change specs are in `openspec/changes/done/<id>/` for reference.
 
 ---
 
