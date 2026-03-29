@@ -188,6 +188,42 @@ func TestDiscover_DeduplicatesLogicalResourcesAcrossVersions(t *testing.T) {
 	}
 }
 
+func TestDiscover_DeduplicatesBuiltinsAcrossGroups(t *testing.T) {
+	t.Parallel()
+
+	dc := &discoveryfake.FakeDiscovery{
+		Fake: &k8stesting.Fake{
+			Resources: []*metav1.APIResourceList{
+				{
+					GroupVersion: "v1",
+					APIResources: []metav1.APIResource{
+						{Kind: "Event", Name: "events", Namespaced: true, Verbs: metav1.Verbs{"get", "list"}},
+					},
+				},
+				{
+					GroupVersion: "events.k8s.io/v1",
+					APIResources: []metav1.APIResource{
+						{Kind: "Event", Name: "events", Namespaced: true, Verbs: metav1.Verbs{"get", "list"}},
+					},
+				},
+			},
+		},
+	}
+
+	resources, err := Discover(dc, "")
+	if err != nil {
+		t.Fatalf("Discover returned error: %v", err)
+	}
+
+	if len(resources) != 1 {
+		t.Fatalf("expected 1 deduplicated event resource, got %d", len(resources))
+	}
+
+	if resources[0].APIGroup != "" || resources[0].APIVersion != "v1" {
+		t.Fatalf("expected core/v1 event to be kept, got %q/%q", resources[0].APIGroup, resources[0].APIVersion)
+	}
+}
+
 func newFakeDiscovery() *discoveryfake.FakeDiscovery {
 	return &discoveryfake.FakeDiscovery{
 		Fake: &k8stesting.Fake{

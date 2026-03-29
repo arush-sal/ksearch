@@ -44,7 +44,7 @@ func Discover(dc discovery.DiscoveryInterface, kinds string) ([]ResourceMeta, er
 				continue
 			}
 
-			logicalKey := fmt.Sprintf("%s/%s/%t", gv.Group, resource.Name, resource.Namespaced)
+			logicalKey := discoveryDedupKey(resource.Kind, resource.Name, gv.Group, resource.Namespaced)
 			if seen[logicalKey] {
 				continue
 			}
@@ -174,4 +174,12 @@ func canonicalResourceName(kind, resource string) string {
 	}
 
 	return ""
+}
+
+func discoveryDedupKey(kind, resource, group string, namespaced bool) string {
+	if canonical := canonicalResourceName(kind, resource); canonical != "" {
+		return fmt.Sprintf("canonical/%s/%t", canonical, namespaced)
+	}
+
+	return fmt.Sprintf("%s/%s/%t", group, resource, namespaced)
 }

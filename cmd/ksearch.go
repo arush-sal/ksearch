@@ -16,6 +16,7 @@ import (
 	"github.com/arush-sal/ksearch/pkg/printers"
 	"github.com/arush-sal/ksearch/pkg/util"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
 
@@ -27,6 +28,15 @@ var (
 	cacheTTL                  time.Duration
 	noCache                   bool
 	version                   = "dev"
+
+	currentContextNameFn    = currentContextName
+	readCacheFn             = cache.Read
+	writeCachedSectionsFn   = writeCachedSections
+	getConfigOrDieFn        = func() *rest.Config { return config.GetConfigOrDie() }
+	newClientsetForConfigFn = func(cfg *rest.Config) kubernetes.Interface {
+		return kubernetes.NewForConfigOrDie(cfg)
+	}
+	discoverResourcesFn = util.Discover
 )
 
 // rootCmd represents the base command when called without any subcommands
@@ -36,97 +46,96 @@ var rootCmd = &cobra.Command{
 	Version: version,
 	Long:    `ksearch is a command line tool to search for a given pattern in a Kubernetes cluster and will print all of the available resources in a cluster if none is provided`,
 	Run: func(cmd *cobra.Command, args []string) {
-		ttl, err := resolvedCacheTTL(cmd)
-		if err != nil {
+		if err := runRoot(cmd, args); err != nil {
 			cmd.PrintErrln(err)
 			os.Exit(1)
-		}
-
-		currentContext, err := currentContextName()
-		if err != nil {
-			cmd.PrintErrln(err)
-			os.Exit(1)
-		}
-
-		cfg := config.GetConfigOrDie()
-		clientset := kubernetes.NewForConfigOrDie(cfg)
-
-		resources, err := util.Discover(clientset.Discovery(), kinds)
-		if err != nil {
-			cmd.PrintErrln(err)
-			os.Exit(1)
-		}
-
-		resourceOrder := make([]string, len(resources))
-		for i, resource := range resources {
-			resourceOrder[i] = resource.Kind
-		}
-
-		getter := make(chan interface{})
-		key := cache.KeyFor(currentContext, namespace, kinds, resName)
-
-		if !noCache {
-			entry, err := cache.Read(key, ttl)
-			if err != nil {
-				cmd.PrintErrln(err)
-				os.Exit(1)
-			}
-
-			if entry != nil {
-				if err := writeCachedSections(entry.Sections); err != nil {
-					cmd.PrintErrln(err)
-					os.Exit(1)
-				}
-				return
-			}
-		}
-
-		go util.Getter(namespace, clientset, cfg, resources, getter)
-
-		results := make([]cache.SectionEntry, len(resources))
-		var wg sync.WaitGroup
-		index := 0
-		for resource := range getter {
-			resultIndex := index
-			index++
-
-			wg.Add(1)
-			go func(idx int, renderedResource interface{}) {
-				defer wg.Done()
-
-				var buffer bytes.Buffer
-				printers.Printer(&buffer, renderedResource, resName)
-				results[idx] = cache.SectionEntry{
-					Kind:   resourceOrder[idx],
-					Output: buffer.String(),
-				}
-			}(resultIndex, resource)
-		}
-
-		wg.Wait()
-
-		if err := cache.Write(key, cache.CacheMeta{
-			Context:    currentContext,
-			Namespace:  namespace,
-			Kinds:      kinds,
-			Pattern:    resName,
-			TTLSeconds: int(ttl.Seconds()),
-		}, results); err != nil {
-			cmd.PrintErrln(err)
-			os.Exit(1)
-		}
-
-		for _, result := range results {
-			if len(result.Output) == 0 {
-				continue
-			}
-
-			if _, err := os.Stdout.Write([]byte(result.Output)); err != nil {
-				cmd.PrintErrln(err)
-				os.Exit(1)
-			}
 		}
 	},
+}
+
+func runRoot(cmd *cobra.Command, args []string) error {
+	ttl, err := resolvedCacheTTL(cmd)
+	if err != nil {
+		return err
+	}
+
+	currentContext, err := currentContextNameFn()
+	if err != nil {
+		return err
+	}
+
+	key := cache.KeyFor(currentContext, namespace, kinds, resName)
+
+	if !noCache {
+		entry, err := readCacheFn(key, ttl)
+		if err != nil {
+			return err
+		}
+
+		if entry != nil {
+			return writeCachedSectionsFn(entry.Sections)
+		}
+	}
+
+	cfg := getConfigOrDieFn()
+	clientset := newClientsetForConfigFn(cfg)
+
+	resources, err := discoverResourcesFn(clientset.Discovery(), kinds)
+	if err != nil {
+		return err
+	}
+
+	resourceOrder := make([]string, len(resources))
+	for i, resource := range resources {
+		resourceOrder[i] = resource.Kind
+	}
+
+	getter := make(chan interface{})
+	go util.Getter(namespace, clientset, cfg, resources, getter)
+
+	results := make([]cache.SectionEntry, len(resources))
+	var wg sync.WaitGroup
+	index := 0
+	for resource := range getter {
+		resultIndex := index
+		index++
+
+		wg.Add(1)
+		go func(idx int, renderedResource interface{}) {
+			defer wg.Done()
+
+			var buffer bytes.Buffer
+			printers.Printer(&buffer, renderedResource, resName)
+			results[idx] = cache.SectionEntry{
+				Kind:   resourceOrder[idx],
+				Output: buffer.String(),
+			}
+		}(resultIndex, resource)
+	}
+
+	wg.Wait()
+
+	if err := cache.Write(key, cache.CacheMeta{
+		Context:    currentContext,
+		Namespace:  namespace,
+		Kinds:      kinds,
+		Pattern:    resName,
+		TTLSeconds: int(ttl.Seconds()),
+	}, results); err != nil {
+		return err
+	}
+
+	for _, result := range results {
+		if len(result.Output) == 0 {
+			continue
+		}
+
+		if _, err := os.Stdout.Write([]byte(result.Output)); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 // Execute adds all child commands to the root command and sets flags appropriately.
@@ -156,7 +165,8 @@ func initConfig() {
 }
 
 func resolvedCacheTTL(cmd *cobra.Command) (time.Duration, error) {
-	if cmd.Flags().Lookup("cache-ttl").Changed {
+	flag := cmd.Flags().Lookup("cache-ttl")
+	if flag != nil && flag.Changed {
 		return cacheTTL, nil
 	}
 
