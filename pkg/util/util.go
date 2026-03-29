@@ -9,9 +9,14 @@ import (
 	"k8s.io/client-go/rest"
 )
 
+type FetchResult struct {
+	Kind     string
+	Resource interface{}
+}
+
 // Getter the
 // This should be go routine ready. Such that getter can be called via goroutines and over a channel the value can be passed to a switch type through with the respective printer can be called.
-func Getter(namespace string, clientset kubernetes.Interface, restConfig *rest.Config, resources []ResourceMeta, c chan interface{}) {
+func Getter(namespace string, clientset kubernetes.Interface, restConfig *rest.Config, resources []ResourceMeta, c chan FetchResult) {
 	defer close(c)
 	ctx := context.Background()
 
@@ -85,9 +90,7 @@ func Getter(namespace string, clientset kubernetes.Interface, restConfig *rest.C
 			handleError(err, meta.Kind)
 		}
 
-		if list != nil {
-			c <- list
-		}
+		c <- FetchResult{Kind: meta.Kind, Resource: list}
 	}
 }
 

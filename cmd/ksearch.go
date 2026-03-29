@@ -32,11 +32,13 @@ var (
 	currentContextNameFn    = currentContextName
 	readCacheFn             = cache.Read
 	writeCachedSectionsFn   = writeCachedSections
+	writeCacheFn            = cache.Write
 	getConfigOrDieFn        = func() *rest.Config { return config.GetConfigOrDie() }
 	newClientsetForConfigFn = func(cfg *rest.Config) kubernetes.Interface {
 		return kubernetes.NewForConfigOrDie(cfg)
 	}
 	discoverResourcesFn = util.Discover
+	getterFn            = util.Getter
 )
 
 // rootCmd represents the base command when called without any subcommands
@@ -85,37 +87,34 @@ func runRoot(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	resourceOrder := make([]string, len(resources))
-	for i, resource := range resources {
-		resourceOrder[i] = resource.Kind
-	}
-
-	getter := make(chan interface{})
-	go util.Getter(namespace, clientset, cfg, resources, getter)
+	getter := make(chan util.FetchResult)
+	go getterFn(namespace, clientset, cfg, resources, getter)
 
 	results := make([]cache.SectionEntry, len(resources))
 	var wg sync.WaitGroup
 	index := 0
-	for resource := range getter {
+	for fetched := range getter {
 		resultIndex := index
 		index++
 
 		wg.Add(1)
-		go func(idx int, renderedResource interface{}) {
+		go func(idx int, fetched util.FetchResult) {
 			defer wg.Done()
 
 			var buffer bytes.Buffer
-			printers.Printer(&buffer, renderedResource, resName)
+			if fetched.Resource != nil {
+				printers.Printer(&buffer, fetched.Resource, resName)
+			}
 			results[idx] = cache.SectionEntry{
-				Kind:   resourceOrder[idx],
+				Kind:   fetched.Kind,
 				Output: buffer.String(),
 			}
-		}(resultIndex, resource)
+		}(resultIndex, fetched)
 	}
 
 	wg.Wait()
 
-	if err := cache.Write(key, cache.CacheMeta{
+	if err := writeCacheFn(key, cache.CacheMeta{
 		Context:    currentContext,
 		Namespace:  namespace,
 		Kinds:      kinds,

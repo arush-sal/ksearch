@@ -23,24 +23,28 @@ func TestGetter_CustomKinds(t *testing.T) {
 		},
 	})
 
-	results := make(chan interface{})
+	results := make(chan FetchResult)
 
 	go Getter("default", clientset, nil, []ResourceMeta{
 		{Kind: "ConfigMap", Resource: "configmaps", Namespaced: true},
 	}, results)
 
-	var received []interface{}
-	for item := range results {
-		received = append(received, item)
+	var received []FetchResult
+	for result := range results {
+		received = append(received, result)
 	}
 
 	if len(received) != 1 {
 		t.Fatalf("expected exactly one result, got %d", len(received))
 	}
 
-	configMaps, ok := received[0].(*v1.ConfigMapList)
+	if received[0].Kind != "ConfigMap" {
+		t.Fatalf("expected kind ConfigMap, got %q", received[0].Kind)
+	}
+
+	configMaps, ok := received[0].Resource.(*v1.ConfigMapList)
 	if !ok {
-		t.Fatalf("expected *v1.ConfigMapList, got %T", received[0])
+		t.Fatalf("expected *v1.ConfigMapList, got %T", received[0].Resource)
 	}
 
 	if len(configMaps.Items) != 1 {
@@ -52,11 +56,26 @@ func TestGetter_UnknownKind(t *testing.T) {
 	t.Parallel()
 
 	clientset := fake.NewSimpleClientset()
-	results := make(chan interface{})
+	results := make(chan FetchResult)
 
 	go Getter("default", clientset, nil, []ResourceMeta{
 		{Kind: "NonExistentKind", Resource: "nonexistentkinds", Namespaced: true},
 	}, results)
+
+	select {
+	case result, ok := <-results:
+		if !ok {
+			t.Fatal("expected placeholder result before channel close")
+		}
+		if result.Kind != "NonExistentKind" {
+			t.Fatalf("expected kind NonExistentKind, got %q", result.Kind)
+		}
+		if result.Resource != nil {
+			t.Fatalf("expected nil resource for unknown kind, got %#v", result.Resource)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("timed out waiting for placeholder result")
+	}
 
 	select {
 	case _, ok := <-results:
@@ -77,7 +96,7 @@ func TestGetter_ChannelAlwaysClosed(t *testing.T) {
 			Namespace: "default",
 		},
 	})
-	results := make(chan interface{})
+	results := make(chan FetchResult)
 
 	go Getter("default", clientset, nil, []ResourceMeta{
 		{Kind: "Pod", Resource: "pods", Namespaced: true},
@@ -114,7 +133,7 @@ func TestGetter_CustomResource(t *testing.T) {
 	defer server.Close()
 
 	clientset := fake.NewSimpleClientset()
-	results := make(chan interface{})
+	results := make(chan FetchResult)
 	cfg := &rest.Config{Host: server.URL}
 
 	go Getter("default", clientset, cfg, []ResourceMeta{
@@ -122,14 +141,18 @@ func TestGetter_CustomResource(t *testing.T) {
 	}, results)
 
 	select {
-	case item, ok := <-results:
+	case result, ok := <-results:
 		if !ok {
 			t.Fatal("expected custom resource list before channel close")
 		}
 
-		list, ok := item.(*unstructured.UnstructuredList)
+		if result.Kind != "Widget" {
+			t.Fatalf("expected kind Widget, got %q", result.Kind)
+		}
+
+		list, ok := result.Resource.(*unstructured.UnstructuredList)
 		if !ok {
-			t.Fatalf("expected *unstructured.UnstructuredList, got %T", item)
+			t.Fatalf("expected *unstructured.UnstructuredList, got %T", result.Resource)
 		}
 
 		if list.GetKind() != "Widget" {
