@@ -54,12 +54,14 @@ cmd/ksearch.go  →  pkg/util/util.go  →  pkg/printers/printers.go
 
 ## Planned changes (openspec/)
 
-Three upgrade tracks are tracked under `openspec/changes/`:
+Pending changes are tracked under `openspec/changes/`. Completed and merged changes
+are archived in `openspec/changes/done/`. Only directories directly under
+`openspec/changes/` (not inside `done/`) represent work still to be done.
+
+**Currently pending:**
 
 | Change | Summary |
 |--------|---------|
-| `0001-dependency-upgrade` | Bump Go to 1.22, k8s client-go to v0.32.x; adds `context.Context` to all `.List()` calls; removes deprecated `ComponentStatuses` |
-| `0002-concurrent-printing` | Refactor `printers.go` to accept `io.Writer`; extract shared `matchesPattern` helper; fan-out print goroutines with ordered flush |
-| `0003-application-caching` | New `pkg/cache` package; SHA-256 keyed disk cache under `~/.kube/ksearch/cache/`; `--cache-ttl` and `--no-cache` flags |
+| `0006-dynamic-resource-discovery` | Replace static resource lists in `pkg/util/util.go` and `cmd/ksearch.go` with live discovery via `ServerPreferredResources()`; expose `Discover()` from `pkg/util`; eliminate list duplication |
 
-Implement in order: 0001 must land before 0002 or 0003.
+**Completed (in `openspec/changes/done/`):** 0001 (dep upgrade), 0002 (concurrent printing), 0003 (caching), 0004 (tests), 0005 (CI/CD).

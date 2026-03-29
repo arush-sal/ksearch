@@ -6,17 +6,29 @@ namespace, context, and set of resource kinds.
 
 ## Requirements
 
-### Requirement: Supported resource kinds
-The system SHALL support listing the following resource kinds by default:
-Pods, ConfigMaps, Endpoints, Events, LimitRanges, Namespaces,
-PersistentVolumes, PersistentVolumeClaims, PodTemplates, ResourceQuotas,
-Secrets, Services, ServiceAccounts, DaemonSets, Deployments, ReplicaSets,
-StatefulSets.
+### Requirement: Dynamic resource discovery
+The system SHALL discover listable resource kinds from the Kubernetes API
+server at runtime using the discovery API (ServerGroupsAndResources),
+rather than maintaining a static hardcoded list.
 
-#### Scenario: Default resource list is fetched
+Only resource types that advertise the "list" verb SHALL be included.
+
+#### Scenario: Default resource list is discovered
 - GIVEN no --kinds flag is provided
 - WHEN ksearch is invoked
-- THEN all default resource kinds are queried from the Kubernetes API
+- THEN all resource kinds that support the "list" verb are queried from
+  the Kubernetes discovery API and used as the search set
+
+#### Scenario: Partial discovery failure is tolerated
+- GIVEN one API group is unavailable (e.g. a CRD webhook is down)
+- WHEN ksearch is invoked
+- THEN the error is logged, and all successfully discovered resource kinds
+  are still fetched and printed
+
+### Requirement: Single source of truth for resource kinds
+The list of resource kinds to query SHALL NOT be duplicated across packages.
+A single `Discover()` function in `pkg/util` is the authoritative source.
+`cmd/ksearch.go` SHALL NOT define its own resource list.
 
 ### Requirement: Custom resource kinds via flag
 The system SHALL allow users to restrict fetching to a comma-separated
