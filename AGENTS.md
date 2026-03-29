@@ -4,10 +4,11 @@
 
 `ksearch` is a Go CLI kubectl plugin for comprehensive Kubernetes resource discovery.
 Entry points are `main.go` (calls `cmd.Execute()`) and `cmd/ksearch.go` (Cobra flags,
-client init, result dispatch). Core resource fetching is in `pkg/util/util.go`;
-stdout rendering is in `pkg/printers/printers.go`. Dependency snapshots are checked
-into `vendor/`. Design proposals and planned changes live under `openspec/`; treat
-those as implementation guidance, not runtime code.
+client init, cache handling, discovery, result dispatch). Core resource fetching is in
+`pkg/util/`; stdout rendering is in `pkg/printers/`; local cache logic is in
+`pkg/cache/`. Dependency snapshots are checked into `vendor/`. Design proposals and
+planned changes live under `openspec/`; treat those as implementation guidance, not
+runtime code.
 
 ### Data flow
 
@@ -18,10 +19,10 @@ cmd/ksearch.go  ──► pkg/util/util.go  ──► pkg/printers/printers.go
   result loop)        chan interface{})
 ```
 
-The channel carries concrete typed Kubernetes list structs (`*v1.PodList`,
-`*appsv1.DeploymentList`, etc.). The type switch in `Printer()` must cover every
-type `Getter()` can emit. **Adding a resource kind requires changes in both
-`pkg/util/util.go` and `pkg/printers/printers.go`.**
+The fetch path now supports both typed Kubernetes list structs (`*v1.PodList`,
+`*appsv1.DeploymentList`, etc.) and dynamically discovered unstructured lists.
+The type switch in `Printer()` must cover every typed result `Getter()` can emit,
+and unstructured output must remain sensible for dynamically discovered resources.
 
 ### Planned upgrades (openspec/)
 
@@ -38,10 +39,11 @@ Completed change specs are in `openspec/changes/done/<id>/` for reference.
 
 ## Build, Test, and Development Commands
 
-No Makefile. Use standard Go tooling.
+Use the `Makefile` for common tasks, or standard Go tooling directly.
 
 ```bash
 # Build
+make build
 go build -o ksearch .
 
 # Run
@@ -51,15 +53,21 @@ go build -o ksearch .
 ./ksearch -k configmap,secret -n default
 
 # Test
+make test
 go test ./...                         # all packages
 go test ./pkg/printers/...            # single package
 go test -run TestMatchesPattern ./pkg/printers/...   # single test
 go test -v -count=1 ./...             # verbose, no cache
 
 # Vet and format
+make vet
 go vet ./...
+make fmt
 gofmt -l .                            # list files that need formatting
 gofmt -w .                            # apply formatting
+
+# Lint
+make lint
 ```
 
 The binary is `.gitignored`; rebuild after every source change.
@@ -71,7 +79,7 @@ The binary is `.gitignored`; rebuild after every source change.
 - Tabs for indentation; `gofmt` formatting enforced.
 - Exported identifiers only when cross-package use requires them.
 - Keep CLI wiring in `cmd/`, Kubernetes API fetch logic in `pkg/util/`, formatting
-  logic in `pkg/printers/`, cache logic in `pkg/cache/` (planned).
+  logic in `pkg/printers/`, cache logic in `pkg/cache/`.
 - Error handling: log via `logrus` and continue rather than `log.Fatal`/`panic`
   inside library packages; reserve `OrDie` helpers for `cmd/` init paths only.
 
@@ -79,8 +87,8 @@ The binary is `.gitignored`; rebuild after every source change.
 
 ## Testing Scope
 
-Tests do not yet exist. The following test strategy should be followed when
-implementing new code or the planned changes above.
+Tests already exist across command, cache, printer, and util packages. New work
+should follow and extend the existing test patterns below.
 
 ### pkg/printers
 
@@ -90,8 +98,7 @@ implementing new code or the planned changes above.
 | `TestPrinter_<Kind>` | Given a populated `*v1.XList`, `Printer()` writes expected header and rows to a `bytes.Buffer`; empty list writes nothing |
 | `TestPrinter_PatternFilter` | Rows not matching the pattern are absent from output |
 
-Use `bytes.Buffer` as the `io.Writer` target once the `0002` refactor lands.
-Until then, capture stdout with `os.Pipe()`.
+Use `bytes.Buffer` as the `io.Writer` target.
 
 ### pkg/util
 
@@ -103,7 +110,7 @@ Until then, capture stdout with `os.Pipe()`.
 Use `k8s.io/client-go/kubernetes/fake` to construct a fake clientset that returns
 pre-populated lists without hitting a real cluster.
 
-### pkg/cache (planned, change 0003)
+### pkg/cache
 
 | Test | What to verify |
 |------|---------------|
@@ -129,7 +136,7 @@ skipped in CI unless explicitly enabled.
 
 ## CI/CD and Release Cycle
 
-### Planned CI pipeline (.github/workflows/)
+### Current CI pipeline (.github/workflows/)
 
 #### `ci.yml` — runs on every push and pull request to `master`
 
@@ -140,8 +147,7 @@ jobs:
   build:   go build -o ksearch . (matrix: linux/amd64, linux/arm64, darwin/amd64, darwin/arm64, windows/amd64)
 ```
 
-Minimum Go version pinned to whatever `go.mod` declares.
-Use `actions/setup-go` with `cache: true` and `actions/cache` for the vendor directory.
+Minimum Go version is pinned from `go.mod` via `actions/setup-go` with Go module cache enabled.
 
 #### `release.yml` — runs on git tag push matching `v*.*.*`
 
@@ -160,14 +166,13 @@ Artefacts per release:
 - SHA-256 checksums file
 - kubectl krew plugin manifest (`ksearch.yaml`) — required for krew submission
 
-### .goreleaser.yml (to be created)
+### `.goreleaser.yml`
 
 Key settings:
 
 - `builds`: set `ldflags` to inject version string from git tag (`-X main.version={{.Version}}`)
 - `archives`: include `LICENSE` in every archive
 - `checksum`: sha256
-- `release`: auto-generate changelog from commit messages
 - `krew`: generate the krew manifest pointing at the GitHub release assets
 
 ### Release cadence
@@ -184,7 +189,7 @@ Versioning follows **semver**:
 - Minor (`v0.x.0`): new resource kinds, new flags, non-breaking behaviour changes
 - Major (`v1.0.0`): breaking CLI changes (flag renames, output format changes, removed kinds)
 
-### PR checklist (to be added as `.github/pull_request_template.md`)
+### PR checklist
 
 - [ ] `go build ./...` passes
 - [ ] `go vet ./...` passes
@@ -211,6 +216,5 @@ Keep each commit scoped to one logical change. PR descriptions must list:
 
 This tool talks to a live Kubernetes cluster through the current kubeconfig context.
 During development, test against a dedicated non-production namespace.
-The planned application cache (`~/.kube/ksearch/cache/`) stores raw API responses
-including Secret values in plaintext at mode 0600; document this in the README before
-the 0003 change ships.
+The application cache (`~/.kube/ksearch/cache/`) stores command output locally.
+Be careful when validating cache behavior against live clusters.
