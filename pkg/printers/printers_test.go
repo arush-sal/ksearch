@@ -8,6 +8,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 
 func TestPrintSecrets_NoSensitiveDataInOutput(t *testing.T) {
@@ -82,6 +83,22 @@ func TestPrinter_PatternFilter(t *testing.T) {
 	}
 }
 
+func TestPrinter_PatternFilterSuppressesEmptySection(t *testing.T) {
+	list := &v1.ConfigMapList{
+		Items: []v1.ConfigMap{
+			{ObjectMeta: metav1.ObjectMeta{Name: "nginx-config"}},
+			{ObjectMeta: metav1.ObjectMeta{Name: "redis-config"}},
+		},
+	}
+
+	var output bytes.Buffer
+	Printer(&output, list, "stg-pgdb")
+
+	if output.String() != "" {
+		t.Fatalf("expected no output when no rows match pattern, got %q", output.String())
+	}
+}
+
 func TestMatchesPattern(t *testing.T) {
 	testCases := []struct {
 		name    string
@@ -116,5 +133,59 @@ func TestMatchesPattern(t *testing.T) {
 				t.Fatalf("matchesPattern(%q, %q) = %v, want %v", testCase.value, testCase.pattern, got, testCase.match)
 			}
 		})
+	}
+}
+
+func TestPrinter_UnstructuredList(t *testing.T) {
+	list := &unstructured.UnstructuredList{
+		Items: []unstructured.Unstructured{
+			{
+				Object: map[string]interface{}{
+					"apiVersion": "example.com/v1",
+					"kind":       "Widget",
+					"metadata": map[string]interface{}{
+						"name":      "demo-widget",
+						"namespace": "default",
+					},
+				},
+			},
+		},
+	}
+	list.SetKind("Widget")
+
+	var output bytes.Buffer
+	Printer(&output, list, "demo")
+
+	if !strings.Contains(output.String(), "Widget") {
+		t.Fatalf("expected kind header in output, got %q", output.String())
+	}
+
+	if !strings.Contains(output.String(), "demo-widget") {
+		t.Fatalf("expected resource name in output, got %q", output.String())
+	}
+}
+
+func TestPrinter_UnstructuredListSuppressesEmptySection(t *testing.T) {
+	list := &unstructured.UnstructuredList{
+		Items: []unstructured.Unstructured{
+			{
+				Object: map[string]interface{}{
+					"apiVersion": "example.com/v1",
+					"kind":       "Widget",
+					"metadata": map[string]interface{}{
+						"name":      "demo-widget",
+						"namespace": "default",
+					},
+				},
+			},
+		},
+	}
+	list.SetKind("Widget")
+
+	var output bytes.Buffer
+	Printer(&output, list, "stg-pgdb")
+
+	if output.String() != "" {
+		t.Fatalf("expected no output when no unstructured rows match pattern, got %q", output.String())
 	}
 }
