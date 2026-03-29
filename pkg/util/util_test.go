@@ -26,7 +26,7 @@ func TestGetter_CustomKinds(t *testing.T) {
 	results := make(chan FetchResult)
 
 	go Getter("default", clientset, nil, []ResourceMeta{
-		{Kind: "ConfigMap", Resource: "configmaps", Namespaced: true},
+		{Kind: "ConfigMap", Resource: "configmaps", APIVersion: "v1", Namespaced: true},
 	}, results)
 
 	var received []FetchResult
@@ -99,7 +99,7 @@ func TestGetter_ChannelAlwaysClosed(t *testing.T) {
 	results := make(chan FetchResult)
 
 	go Getter("default", clientset, nil, []ResourceMeta{
-		{Kind: "Pod", Resource: "pods", Namespaced: true},
+		{Kind: "Pod", Resource: "pods", APIVersion: "v1", Namespaced: true},
 	}, results)
 
 	done := make(chan struct{})
@@ -170,6 +170,66 @@ func TestGetter_CustomResource(t *testing.T) {
 	case _, ok := <-results:
 		if ok {
 			t.Fatal("expected channel to be closed after custom resource result")
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("timed out waiting for channel to close")
+	}
+}
+
+func TestGetter_UsesDynamicPathWhenDiscoveredEndpointDiffers(t *testing.T) {
+	t.Parallel()
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			t.Fatalf("expected GET request, got %s", r.Method)
+		}
+		if r.URL.Path != "/apis/events.k8s.io/v1/namespaces/default/events" {
+			t.Fatalf("unexpected path %q", r.URL.Path)
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"apiVersion":"events.k8s.io/v1","kind":"EventList","metadata":{},"items":[{"apiVersion":"events.k8s.io/v1","kind":"Event","metadata":{"name":"demo","namespace":"default"}}]}`))
+	}))
+	defer server.Close()
+
+	clientset := fake.NewSimpleClientset()
+	results := make(chan FetchResult)
+	cfg := &rest.Config{Host: server.URL}
+
+	go Getter("default", clientset, cfg, []ResourceMeta{
+		{Kind: "Event", Resource: "events", APIGroup: "events.k8s.io", APIVersion: "v1", Namespaced: true},
+	}, results)
+
+	select {
+	case result, ok := <-results:
+		if !ok {
+			t.Fatal("expected migrated resource list before channel close")
+		}
+
+		if result.Kind != "Event" {
+			t.Fatalf("expected kind Event, got %q", result.Kind)
+		}
+
+		list, ok := result.Resource.(*unstructured.UnstructuredList)
+		if !ok {
+			t.Fatalf("expected *unstructured.UnstructuredList, got %T", result.Resource)
+		}
+
+		if list.GetAPIVersion() != "events.k8s.io/v1" {
+			t.Fatalf("expected events.k8s.io/v1, got %q", list.GetAPIVersion())
+		}
+
+		if len(list.Items) != 1 || list.Items[0].GetName() != "demo" {
+			t.Fatalf("unexpected migrated resource items: %#v", list.Items)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("timed out waiting for migrated resource result")
+	}
+
+	select {
+	case _, ok := <-results:
+		if ok {
+			t.Fatal("expected channel to be closed after migrated resource result")
 		}
 	case <-time.After(2 * time.Second):
 		t.Fatal("timed out waiting for channel to close")

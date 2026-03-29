@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	log "github.com/sirupsen/logrus"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/discovery"
 )
@@ -15,7 +16,7 @@ type ResourceMeta struct {
 }
 
 func Discover(dc discovery.DiscoveryInterface, kinds string) ([]ResourceMeta, error) {
-	_, lists, err := dc.ServerGroupsAndResources()
+	groups, lists, err := dc.ServerGroupsAndResources()
 	if err != nil && lists == nil {
 		return nil, err
 	}
@@ -25,7 +26,8 @@ func Discover(dc discovery.DiscoveryInterface, kinds string) ([]ResourceMeta, er
 
 	filter := parseKindsFilter(kinds)
 	resources := make([]ResourceMeta, 0)
-	seen := make(map[string]bool)
+	indexByKey := make(map[string]int)
+	preferredVersions := preferredVersionByGroup(groups)
 	for _, list := range lists {
 		if list == nil {
 			continue
@@ -44,19 +46,24 @@ func Discover(dc discovery.DiscoveryInterface, kinds string) ([]ResourceMeta, er
 				continue
 			}
 
-			logicalKey := discoveryDedupKey(resource.Kind, resource.Name, gv.Group, resource.Namespaced)
-			if seen[logicalKey] {
-				continue
-			}
-			seen[logicalKey] = true
-
-			resources = append(resources, ResourceMeta{
+			meta := ResourceMeta{
 				Kind:       resource.Kind,
 				Resource:   resource.Name,
 				APIGroup:   gv.Group,
 				APIVersion: gv.Version,
 				Namespaced: resource.Namespaced,
-			})
+			}
+
+			logicalKey := discoveryDedupKey(meta)
+			if idx, ok := indexByKey[logicalKey]; ok {
+				if shouldReplaceDiscoveredResource(meta, resources[idx], preferredVersions) {
+					resources[idx] = meta
+				}
+				continue
+			}
+
+			indexByKey[logicalKey] = len(resources)
+			resources = append(resources, meta)
 		}
 	}
 
@@ -176,10 +183,59 @@ func canonicalResourceName(kind, resource string) string {
 	return ""
 }
 
-func discoveryDedupKey(kind, resource, group string, namespaced bool) string {
-	if canonical := canonicalResourceName(kind, resource); canonical != "" {
-		return fmt.Sprintf("canonical/%s/%t", canonical, namespaced)
+func discoveryDedupKey(meta ResourceMeta) string {
+	if canonical := canonicalResourceName(meta.Kind, meta.Resource); canonical != "" {
+		return fmt.Sprintf("canonical/%s/%t", canonical, meta.Namespaced)
 	}
 
-	return fmt.Sprintf("%s/%s/%t", group, resource, namespaced)
+	return fmt.Sprintf("%s/%s/%t", meta.APIGroup, meta.Resource, meta.Namespaced)
+}
+
+func preferredVersionByGroup(groups []*metav1.APIGroup) map[string]string {
+	preferred := make(map[string]string)
+	for _, group := range groups {
+		if group == nil {
+			continue
+		}
+
+		if group.PreferredVersion.Version != "" {
+			preferred[group.Name] = group.PreferredVersion.Version
+		}
+	}
+	return preferred
+}
+
+func shouldReplaceDiscoveredResource(candidate, existing ResourceMeta, preferredVersions map[string]string) bool {
+	return resourcePriority(candidate, preferredVersions) > resourcePriority(existing, preferredVersions)
+}
+
+func resourcePriority(meta ResourceMeta, preferredVersions map[string]string) int {
+	score := 0
+	if canonical := canonicalResourceName(meta.Kind, meta.Resource); canonical != "" && endpointMatchesTyped(meta, canonical) {
+		score += 4
+	}
+	if preferredVersions[meta.APIGroup] == meta.APIVersion {
+		score += 2
+	}
+	return score
+}
+
+func endpointMatchesTyped(meta ResourceMeta, canonical string) bool {
+	group, version, ok := typedEndpointForCanonical(canonical)
+	if !ok {
+		return false
+	}
+
+	return meta.APIGroup == group && meta.APIVersion == version
+}
+
+func typedEndpointForCanonical(canonical string) (string, string, bool) {
+	switch canonical {
+	case "pods", "configmaps", "endpoints", "events", "limitranges", "namespaces", "persistentvolumes", "persistentvolumeclaims", "podtemplates", "resourcequotas", "secrets", "services", "serviceaccounts":
+		return "", "v1", true
+	case "daemonsets", "deployments", "replicasets", "statefulsets":
+		return "apps", "v1", true
+	default:
+		return "", "", false
+	}
 }
