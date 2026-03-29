@@ -21,7 +21,9 @@ func TestGetter_CustomKinds(t *testing.T) {
 
 	results := make(chan interface{})
 
-	go Getter("default", clientset, "ConfigMaps", results)
+	go Getter("default", clientset, []ResourceMeta{
+		{Kind: "ConfigMaps", Resource: "configmaps", Namespaced: true},
+	}, results)
 
 	var received []interface{}
 	for item := range results {
@@ -48,7 +50,9 @@ func TestGetter_UnknownKind(t *testing.T) {
 	clientset := fake.NewSimpleClientset()
 	results := make(chan interface{})
 
-	go Getter("default", clientset, "NonExistentKind", results)
+	go Getter("default", clientset, []ResourceMeta{
+		{Kind: "NonExistentKind", Resource: "nonexistentkinds", Namespaced: true},
+	}, results)
 
 	select {
 	case _, ok := <-results:
@@ -71,7 +75,9 @@ func TestGetter_ChannelAlwaysClosed(t *testing.T) {
 	})
 	results := make(chan interface{})
 
-	go Getter("default", clientset, "Pods", results)
+	go Getter("default", clientset, []ResourceMeta{
+		{Kind: "Pods", Resource: "pods", Namespaced: true},
+	}, results)
 
 	done := make(chan struct{})
 	go func() {

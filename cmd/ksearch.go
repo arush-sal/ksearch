@@ -9,7 +9,6 @@ import (
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
 	"os"
-	"strings"
 	"sync"
 	"time"
 
@@ -30,34 +29,6 @@ var (
 	version                   = "dev"
 )
 
-var defaultResources = []string{
-	"Pods",
-	"ConfigMaps",
-	"Endpoints",
-	"Events",
-	"LimitRanges",
-	"Namespaces",
-	"PersistentVolumes",
-	"PersistentVolumeClaims",
-	"PodTemplates",
-	"ResourceQuotas",
-	"Secrets",
-	"Services",
-	"ServiceAccounts",
-	"DaemonSets",
-	"Deployments",
-	"ReplicaSets",
-	"StatefulSets",
-}
-
-func effectiveResources(kinds string) []string {
-	if kinds == "" {
-		return append([]string(nil), defaultResources...)
-	}
-
-	return strings.Split(kinds, ",")
-}
-
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
 	Use:     "ksearch",
@@ -77,8 +48,21 @@ var rootCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
+		cfg := config.GetConfigOrDie()
+		clientset := kubernetes.NewForConfigOrDie(cfg)
+
+		resources, err := util.Discover(clientset.Discovery(), kinds)
+		if err != nil {
+			cmd.PrintErrln(err)
+			os.Exit(1)
+		}
+
+		resourceOrder := make([]string, len(resources))
+		for i, resource := range resources {
+			resourceOrder[i] = resource.Kind
+		}
+
 		getter := make(chan interface{})
-		resourceOrder := effectiveResources(kinds)
 		key := cache.KeyFor(currentContext, namespace, kinds, resName)
 
 		if !noCache {
@@ -97,12 +81,9 @@ var rootCmd = &cobra.Command{
 			}
 		}
 
-		cfg := config.GetConfigOrDie()
-		clientset := kubernetes.NewForConfigOrDie(cfg)
+		go util.Getter(namespace, clientset, resources, getter)
 
-		go util.Getter(namespace, clientset, kinds, getter)
-
-		results := make([]cache.SectionEntry, len(resourceOrder))
+		results := make([]cache.SectionEntry, len(resources))
 		var wg sync.WaitGroup
 		index := 0
 		for resource := range getter {

@@ -2,110 +2,83 @@ package util
 
 import (
 	"context"
-	"strings"
 
 	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 )
 
-var resources = []string{
-	"Pods",
-	"ConfigMaps",
-	"Endpoints",
-	"Events",
-	"LimitRanges",
-	"Namespaces",
-	"PersistentVolumes",
-	"PersistentVolumeClaims",
-	"PodTemplates",
-	"ResourceQuotas",
-	"Secrets",
-	"Services",
-	"ServiceAccounts",
-	"DaemonSets",
-	"Deployments",
-	"ReplicaSets",
-	"StatefulSets",
-}
-
-func configuredResources(kinds string) []string {
-	if kinds == "" {
-		return append([]string(nil), resources...)
-	}
-
-	return strings.Split(kinds, ",")
-}
-
 // Getter the
 // This should be go routine ready. Such that getter can be called via goroutines and over a channel the value can be passed to a switch type through with the respective printer can be called.
-func Getter(namespace string, clientset kubernetes.Interface, kinds string, c chan interface{}) {
+func Getter(namespace string, clientset kubernetes.Interface, resources []ResourceMeta, c chan interface{}) {
 	defer close(c)
 	ctx := context.Background()
 	var err error
 	var list interface{}
 
-	for _, resource := range configuredResources(kinds) {
-		switch resource {
-		case "Pods":
+	for _, meta := range resources {
+		switch meta.Kind {
+		case "Pod", "Pods":
 			list, err = clientset.CoreV1().Pods(namespace).List(ctx, metav1.ListOptions{})
-			handleError(err, resource)
-		case "ConfigMaps":
+			handleError(err, meta.Kind)
+		case "ConfigMap", "ConfigMaps":
 			list, err = clientset.CoreV1().ConfigMaps(namespace).List(ctx, metav1.ListOptions{})
-			handleError(err, resource)
-		case "Endpoints":
+			handleError(err, meta.Kind)
+		case "Endpoint", "Endpoints":
 			list, err = clientset.CoreV1().Endpoints(namespace).List(ctx, metav1.ListOptions{})
-			handleError(err, resource)
-		case "Events":
+			handleError(err, meta.Kind)
+		case "Event", "Events":
 			list, err = clientset.CoreV1().Events(namespace).List(ctx, metav1.ListOptions{})
-			handleError(err, resource)
-		case "LimitRanges":
+			handleError(err, meta.Kind)
+		case "LimitRange", "LimitRanges":
 			list, err = clientset.CoreV1().LimitRanges(namespace).List(ctx, metav1.ListOptions{})
-			handleError(err, resource)
-		case "Namespaces":
+			handleError(err, meta.Kind)
+		case "Namespace", "Namespaces":
 			list, err = clientset.CoreV1().Namespaces().List(ctx, metav1.ListOptions{})
-			handleError(err, resource)
-		case "PersistentVolumes":
+			handleError(err, meta.Kind)
+		case "PersistentVolume", "PersistentVolumes":
 			list, err = clientset.CoreV1().PersistentVolumes().List(ctx, metav1.ListOptions{})
-			handleError(err, resource)
-		case "PersistentVolumeClaims":
+			handleError(err, meta.Kind)
+		case "PersistentVolumeClaim", "PersistentVolumeClaims":
 			list, err = clientset.CoreV1().PersistentVolumeClaims(namespace).List(ctx, metav1.ListOptions{})
-			handleError(err, resource)
-		case "PodTemplates":
+			handleError(err, meta.Kind)
+		case "PodTemplate", "PodTemplates":
 			list, err = clientset.CoreV1().PodTemplates(namespace).List(ctx, metav1.ListOptions{})
-			handleError(err, resource)
-		case "ResourceQuotas":
+			handleError(err, meta.Kind)
+		case "ResourceQuota", "ResourceQuotas":
 			list, err = clientset.CoreV1().ResourceQuotas(namespace).List(ctx, metav1.ListOptions{})
-			handleError(err, resource)
-		case "Secrets":
+			handleError(err, meta.Kind)
+		case "Secret", "Secrets":
 			list, err = clientset.CoreV1().Secrets(namespace).List(ctx, metav1.ListOptions{})
-			handleError(err, resource)
-		case "Services":
+			handleError(err, meta.Kind)
+		case "Service", "Services":
 			list, err = clientset.CoreV1().Services(namespace).List(ctx, metav1.ListOptions{})
-			handleError(err, resource)
-		case "ServiceAccounts":
+			handleError(err, meta.Kind)
+		case "ServiceAccount", "ServiceAccounts":
 			list, err = clientset.CoreV1().ServiceAccounts(namespace).List(ctx, metav1.ListOptions{})
-			handleError(err, resource)
+			handleError(err, meta.Kind)
 
 		// these will be from the AppsV1
-		case "DaemonSets":
+		case "DaemonSet", "DaemonSets":
 			list, err = clientset.AppsV1().DaemonSets(namespace).List(ctx, metav1.ListOptions{})
-			handleError(err, resource)
-		case "Deployments":
+			handleError(err, meta.Kind)
+		case "Deployment", "Deployments":
 			list, err = clientset.AppsV1().Deployments(namespace).List(ctx, metav1.ListOptions{})
-			handleError(err, resource)
-		case "ReplicaSets":
+			handleError(err, meta.Kind)
+		case "ReplicaSet", "ReplicaSets":
 			list, err = clientset.AppsV1().ReplicaSets(namespace).List(ctx, metav1.ListOptions{})
-			handleError(err, resource)
-		case "StatefulSets":
+			handleError(err, meta.Kind)
+		case "StatefulSet", "StatefulSets":
 			list, err = clientset.AppsV1().StatefulSets(namespace).List(ctx, metav1.ListOptions{})
-			handleError(err, resource)
+			handleError(err, meta.Kind)
 		default:
-			log.Error("Given kind is not supported")
-			return
+			log.Debugf("kind %q not handled, skipping", meta.Kind)
+			continue
 		}
 
-		c <- list
+		if list != nil {
+			c <- list
+		}
 	}
 }
 
