@@ -29,11 +29,7 @@ Pending changes live in `openspec/changes/`. Completed and merged changes are
 archived in `openspec/changes/done/`. When a change is merged, move its directory
 into `done/` and commit the move before starting the next change.
 
-**Currently pending:**
-
-| ID | Summary |
-|----|---------|
-| `0006-dynamic-resource-discovery` | Replace static resource lists with live `ServerPreferredResources()` discovery; expose `Discover()` from `pkg/util`; remove duplication between `pkg/util/util.go` and `cmd/ksearch.go` |
+**Currently pending:** none
 
 Full proposals, designs, and task checklists are in `openspec/changes/<id>/`.
 Completed change specs are in `openspec/changes/done/<id>/` for reference.
