@@ -83,6 +83,7 @@ krews:
     caveats: |
       Requires a valid kubeconfig context. Uses the current-context by default.
       Results are cached for 60s; use --no-cache to bypass.
+    skip_upload: true
     repository:
       owner: arush-sal
       name: krew-index
@@ -91,10 +92,31 @@ krews:
 **Note on target index:** GoReleaser's `krews` section publishes to the repo
 specified in `repository`. For the official `kubernetes-sigs/krew-index`, the
 initial PR is manual (fork + PR to the official repo). After acceptance,
-`krew-release-bot` handles updates. The GoReleaser krew config generates
-the manifest template that the bot uses.
+`krew-release-bot` handles updates. `skip_upload: true` keeps GoReleaser focused
+on generating the local validation manifest in `dist/krew/ksearch.yaml` without
+trying to push to a personal krew-index repository from CI.
 
-## 4. krew-release-bot GitHub Action
+## 4. krew-release-bot GitHub Action and template
+
+Add a root `.krew.yaml` template for the bot to render on each release:
+
+```yaml
+apiVersion: krew.googlecontainertools.github.com/v1alpha2
+kind: Plugin
+metadata:
+  name: ksearch
+spec:
+  version: {{ .TagName }}
+  homepage: https://github.com/arush-sal/ksearch
+  shortDescription: Search Kubernetes resources across API groups
+  platforms:
+    - selector:
+        matchLabels:
+          os: linux
+          arch: amd64
+      {{addURIAndSha "https://github.com/arush-sal/ksearch/releases/download/{{ .TagName }}/ksearch_linux_amd64.tar.gz" .TagName }}
+      bin: ksearch
+```
 
 Add `.github/workflows/krew-release.yml`:
 
@@ -109,12 +131,13 @@ jobs:
   krew-update:
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
       - uses: rajatjindal/krew-release-bot@v0.0.46
 ```
 
 This action:
 - Triggers when a GitHub Release is published (which GoReleaser does on tag push)
-- Reads the `.goreleaser.yml` krew config to build the manifest
+- Reads `.krew.yaml` to build the manifest for the official index update PR
 - Opens a PR to `kubernetes-sigs/krew-index` automatically
 - Trivial version bumps (only version, uri, sha256 changed) are auto-merged
 
@@ -131,20 +154,43 @@ goreleaser release --snapshot --clean
 # 2. Find the generated manifest
 cat dist/krew/ksearch.yaml
 
-# 3. Test installation with the local archive
-kubectl krew install --manifest=dist/krew/ksearch.yaml \
-  --archive=dist/ksearch_linux_amd64.tar.gz
+# 3. Create a local linux/amd64 test archive from the built binary
+mkdir -p /tmp/ksearch-local-archive
+cp dist/ksearch_linux_amd64_v1/ksearch /tmp/ksearch-local-archive/ksearch
+cp LICENSE /tmp/ksearch-local-archive/LICENSE
+tar -C /tmp/ksearch-local-archive -czf /tmp/ksearch_local_linux_amd64.tar.gz \
+  ksearch LICENSE
 
-# 4. Verify
+# 4. Update the linux/amd64 sha256 in dist/krew/ksearch.yaml to match the
+#    local test archive. Krew still validates the manifest checksum even when
+#    --archive overrides the download URI.
+sha256sum /tmp/ksearch_local_linux_amd64.tar.gz
+
+# 5. Test installation with the local archive
+kubectl krew install --manifest=dist/krew/ksearch.yaml \
+  --archive=/tmp/ksearch_local_linux_amd64.tar.gz
+
+# 6. Verify
 kubectl ksearch --help
 kubectl ksearch -n default
 
-# 5. Cross-platform validation (simulate darwin/arm64 on linux)
+# 7. Cleanup
+kubectl krew uninstall ksearch
+```
+
+For local install tests, the manifest checksum must match the custom archive.
+`--archive` replaces the download source, but Krew still verifies the selected
+platform entry's `sha256` from the manifest before unpacking.
+
+Cross-platform validation can still use the generated release archives directly:
+
+```bash
+# 8. Cross-platform validation (simulate darwin/arm64 on linux)
 KREW_OS=darwin KREW_ARCH=arm64 kubectl krew install \
   --manifest=dist/krew/ksearch.yaml \
   --archive=dist/ksearch_darwin_arm64.tar.gz
 
-# 6. Cleanup
+# 9. Cleanup
 kubectl krew uninstall ksearch
 ```
 
@@ -167,6 +213,7 @@ After the first tagged release with the updated GoReleaser config:
 | File | Action |
 |------|--------|
 | `.goreleaser.yml` | **Update** — krew descriptions, caveats (binary name unchanged) |
+| `.krew.yaml` | **New** — template consumed by `krew-release-bot` |
 | `cmd/ksearch.go` | **Update** — add `pluginName()`, set `rootCmd.Use` dynamically |
 | `.github/workflows/krew-release.yml` | **New** — krew-release-bot action |
 

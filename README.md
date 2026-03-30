@@ -22,6 +22,8 @@
 
 ### Krew
 
+After the plugin is accepted into the official `kubernetes-sigs/krew-index`:
+
 ```bash
 kubectl krew install ksearch
 ```

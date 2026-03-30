@@ -7,13 +7,14 @@ kubectl plugin — both via the krew plugin index and via manual installation.
 ## Requirements
 
 ### Requirement: kubectl plugin discovery
-The binary SHALL be named `kubectl-ksearch` so that kubectl's plugin discovery
-mechanism registers it as `kubectl ksearch` without requiring krew.
+The distributed binary SHALL remain named `ksearch`. The krew manifest SHALL
+identify `ksearch` (or `ksearch.exe` on Windows) as the installed executable,
+and krew SHALL provide the `kubectl-ksearch` symlink used for plugin discovery.
 
 #### Scenario: Plugin discovered by kubectl
-- GIVEN the `kubectl-ksearch` binary is on PATH
+- GIVEN the plugin is installed by krew
 - WHEN `kubectl plugin list` is run
-- THEN `kubectl-ksearch` appears in the list
+- THEN `kubectl-ksearch` appears in the list via the symlink krew created
 
 ### Requirement: Krew index listing
 The plugin SHALL be listed on the official `kubernetes-sigs/krew-index` so
@@ -43,6 +44,11 @@ plugin and show the bare binary name otherwise.
 - WHEN `--help` is passed
 - THEN the usage line reads `kubectl ksearch [flags]`
 
+#### Scenario: Help text via direct invocation
+- GIVEN the binary is invoked directly as `./ksearch`
+- WHEN `--help` is passed
+- THEN the usage line reads `ksearch [flags]`
+
 ### Requirement: Cross-platform archives
 Release archives SHALL be produced for linux/amd64, linux/arm64, darwin/amd64,
 darwin/arm64, and windows/amd64. Each SHALL include the binary and a LICENSE file.
@@ -50,4 +56,4 @@ darwin/arm64, and windows/amd64. Each SHALL include the binary and a LICENSE fil
 #### Scenario: Archive contents
 - GIVEN a release archive for linux/amd64
 - WHEN extracted
-- THEN it contains `kubectl-ksearch` and `LICENSE`
+- THEN it contains `ksearch` and `LICENSE`

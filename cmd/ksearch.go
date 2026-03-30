@@ -9,6 +9,7 @@ import (
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
 	"os"
+	"strings"
 	"sync"
 	"time"
 
@@ -43,7 +44,6 @@ var (
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
-	Use:     "ksearch",
 	Short:   "run ksearch --help to get the usage",
 	Version: version,
 	Long:    `ksearch is a command line tool to search for a given pattern in a Kubernetes cluster and will print all of the available resources in a cluster if none is provided`,
@@ -152,6 +152,7 @@ func SetVersion(buildVersion string) {
 
 func init() {
 	cobra.OnInitialize(initConfig)
+	rootCmd.Use = pluginName()
 	rootCmd.PersistentFlags().StringVarP(&resName, "pattern", "p", "", "pattern you want to search for")
 	rootCmd.PersistentFlags().StringVarP(&namespace, "namespace", "n", "", "namespace you want to search in")
 	rootCmd.PersistentFlags().StringVarP(&kinds, "kinds", "k", "", "comma separated list of all the kinds that you want to include")
@@ -161,6 +162,20 @@ func init() {
 
 // initConfig reads in config file and ENV variables if set.
 func initConfig() {
+}
+
+func pluginName() string {
+	base := os.Args[0]
+	if lastSeparator := strings.LastIndexAny(base, `/\`); lastSeparator >= 0 {
+		base = base[lastSeparator+1:]
+	}
+
+	base = strings.TrimSuffix(base, ".exe")
+	if strings.HasPrefix(base, "kubectl-") {
+		return "kubectl " + strings.TrimPrefix(base, "kubectl-")
+	}
+
+	return base
 }
 
 func resolvedCacheTTL(cmd *cobra.Command) (time.Duration, error) {
