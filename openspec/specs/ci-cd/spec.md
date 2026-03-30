@@ -37,7 +37,7 @@ Pushing a tag matching `v*.*.*` to `master` SHALL trigger a release
 pipeline that produces cross-platform archives and a GitHub Release.
 
 #### Scenario: Release artefacts produced
-- GIVEN a tag `v0.1.0` is pushed
+- GIVEN a tag `v1.1.0` is pushed
 - WHEN the release pipeline runs
 - THEN the GitHub Release contains:
   - `ksearch_linux_amd64.tar.gz`
@@ -53,9 +53,9 @@ The released binary SHALL embed the git tag as its version string,
 reported by `ksearch --version`.
 
 #### Scenario: Version matches tag
-- GIVEN the binary was built from tag `v0.1.0`
+- GIVEN the binary was built from tag `v1.1.0`
 - WHEN `ksearch --version` is run
-- THEN the output contains `v0.1.0`
+- THEN the output contains `v1.1.0`
 
 ### Requirement: Semver release cadence
 Releases SHALL follow semantic versioning:

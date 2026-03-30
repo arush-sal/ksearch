@@ -23,7 +23,7 @@ linux/amd64, linux/arm64, darwin/amd64, darwin/arm64, and windows/amd64,
 plus a SHA-256 checksums file.
 
 #### Scenario: Tag triggers release
-- GIVEN tag `v0.1.0` is pushed
+- GIVEN tag `v1.1.0` is pushed
 - WHEN the release workflow runs
 - THEN all five platform archives and checksums.txt are attached to the
   GitHub Release
@@ -32,9 +32,9 @@ plus a SHA-256 checksums file.
 The released binary SHALL report the git tag via `ksearch --version`.
 
 #### Scenario: Version string matches tag
-- GIVEN binary built from tag `v0.1.0`
+- GIVEN binary built from tag `v1.1.0`
 - WHEN `ksearch --version` is run
-- THEN output contains `v0.1.0`
+- THEN output contains `v1.1.0`
 
 ### Requirement: Krew manifest generated on release
 Each release SHALL produce a `ksearch.yaml` krew plugin manifest pointing
