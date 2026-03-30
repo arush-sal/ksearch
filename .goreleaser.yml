@@ -36,8 +36,17 @@ krews:
     ids:
       - default
     homepage: https://github.com/arush-sal/ksearch
-    short_description: Search and list all Kubernetes resources in a namespace
-    description: Search and list all Kubernetes resources in a namespace.
+    short_description: Search Kubernetes resources across API groups
+    description: |
+      ksearch lists and searches Kubernetes resources across both core/v1 and
+      apps/v1 API groups, including resources that kubectl get omits by
+      default. It supports substring matching, namespace scoping, kind
+      filtering, dynamic discovery, and cached output for repeated queries.
+    caveats: |
+      Requires a valid kubeconfig context and uses the current context by
+      default. Results are cached for 60s unless --cache-ttl or --no-cache is
+      used.
+    skip_upload: true
     repository:
       owner: arush-sal
       name: krew-index

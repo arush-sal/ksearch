@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"os"
 	"testing"
 	"time"
 
@@ -13,6 +14,45 @@ import (
 	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
 )
+
+func TestPluginName_WithKubectlPrefix(t *testing.T) {
+	originalArgs := os.Args
+	t.Cleanup(func() {
+		os.Args = originalArgs
+	})
+
+	os.Args = []string{"/usr/local/bin/kubectl-ksearch"}
+
+	if got := pluginName(); got != "kubectl ksearch" {
+		t.Fatalf("expected kubectl plugin name, got %q", got)
+	}
+}
+
+func TestPluginName_WithoutPrefix(t *testing.T) {
+	originalArgs := os.Args
+	t.Cleanup(func() {
+		os.Args = originalArgs
+	})
+
+	os.Args = []string{"/usr/local/bin/ksearch"}
+
+	if got := pluginName(); got != "ksearch" {
+		t.Fatalf("expected standalone binary name, got %q", got)
+	}
+}
+
+func TestPluginName_WindowsExe(t *testing.T) {
+	originalArgs := os.Args
+	t.Cleanup(func() {
+		os.Args = originalArgs
+	})
+
+	os.Args = []string{`C:\Users\foo\kubectl-ksearch.exe`}
+
+	if got := pluginName(); got != "kubectl ksearch" {
+		t.Fatalf("expected kubectl plugin name for windows path, got %q", got)
+	}
+}
 
 func TestRunUsesCacheBeforeDiscovery(t *testing.T) {
 	t.Cleanup(func() {

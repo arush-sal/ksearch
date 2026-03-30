@@ -35,6 +35,10 @@ The `pluginName()` function detects the invocation context at runtime.
 
 ## Phase 3 — krew-release-bot GitHub Action
 
+- [ ] Create `.krew.yaml` with platform entries for linux/amd64, linux/arm64,
+  darwin/amd64, darwin/arm64, and windows/amd64 using `bin: ksearch`
+  (`ksearch.exe` on Windows) and release asset URLs under
+  `https://github.com/arush-sal/ksearch/releases/download/{{ .TagName }}/...`
 - [ ] Create `.github/workflows/krew-release.yml`:
   ```yaml
   name: Update krew-index
@@ -47,6 +51,7 @@ The `pluginName()` function detects the invocation context at runtime.
     krew-update:
       runs-on: ubuntu-latest
       steps:
+        - uses: actions/checkout@v4
         - uses: rajatjindal/krew-release-bot@v0.0.46
   ```
 - [ ] Verify: the existing `release.yml` triggers on `push: tags: ['v*.*.*']` which
@@ -59,7 +64,7 @@ The `pluginName()` function detects the invocation context at runtime.
   - Verify `apiVersion: krew.googlecontainertools.github.com/v1alpha2`
   - Verify `metadata.name: ksearch`
   - Verify all platform entries have `uri`, `sha256`, `bin`
-  - Verify `bin: kubectl-ksearch` (non-windows) and `bin: kubectl-ksearch.exe` (windows)
+  - Verify `bin: ksearch` (non-windows) and `bin: ksearch.exe` (windows)
 - [ ] Test local install (requires krew installed):
   ```bash
   kubectl krew install --manifest=dist/krew/ksearch.yaml \
