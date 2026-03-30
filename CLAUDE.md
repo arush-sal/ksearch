@@ -62,6 +62,6 @@ are archived in `openspec/changes/done/`. Only directories directly under
 
 | Change | Summary |
 |--------|---------|
-| `0006-dynamic-resource-discovery` | Replace static resource lists in `pkg/util/util.go` and `cmd/ksearch.go` with live discovery via `ServerPreferredResources()`; expose `Discover()` from `pkg/util`; eliminate list duplication |
+| `0007-krew-plugin-listing` | Rename binary to `kubectl-ksearch`, add krew-release-bot, refine GoReleaser krew config, submit to `kubernetes-sigs/krew-index` |
 
 **Completed (in `openspec/changes/done/`):** 0001 (dep upgrade), 0002 (concurrent printing), 0003 (caching), 0004 (tests), 0005 (CI/CD).
