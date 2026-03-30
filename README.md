@@ -7,7 +7,7 @@
 [![Go Version](https://img.shields.io/github/go-mod/go-version/arush-sal/ksearch)](./go.mod)
 [![License](https://img.shields.io/github/license/arush-sal/ksearch)](./LICENSE)
 
-[Install with Krew](./README.md#installation) • [Download a release](ttps://github.com/arush-sal/ksearch/releases) • [See examples](./README.md#examples)
+[Install with Krew](./README.md#installation) • [Download a release](https://github.com/arush-sal/ksearch/releases) • [See examples](./README.md#examples)
 
 ## ✨ Features
 
