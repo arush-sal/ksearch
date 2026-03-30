@@ -1,0 +1,48 @@
+apiVersion: krew.googlecontainertools.github.com/v1alpha2
+kind: Plugin
+metadata:
+  name: ksearch
+spec:
+  version: {{ .TagName }}
+  homepage: https://github.com/arush-sal/ksearch
+  shortDescription: Search Kubernetes resources across API groups
+  description: |
+    ksearch lists and searches Kubernetes resources across both core/v1 and
+    apps/v1 API groups, including resources that kubectl get omits by default.
+    It supports substring matching, namespace scoping, kind filtering, dynamic
+    discovery, and cached output for repeated queries.
+  caveats: |
+    Requires a valid kubeconfig context and uses the current context by
+    default. Results are cached for 60s unless --cache-ttl or --no-cache is
+    used.
+  platforms:
+    - selector:
+        matchLabels:
+          os: linux
+          arch: amd64
+      {{addURIAndSha "https://github.com/arush-sal/ksearch/releases/download/{{ .TagName }}/ksearch_linux_amd64.tar.gz" .TagName }}
+      bin: ksearch
+    - selector:
+        matchLabels:
+          os: linux
+          arch: arm64
+      {{addURIAndSha "https://github.com/arush-sal/ksearch/releases/download/{{ .TagName }}/ksearch_linux_arm64.tar.gz" .TagName }}
+      bin: ksearch
+    - selector:
+        matchLabels:
+          os: darwin
+          arch: amd64
+      {{addURIAndSha "https://github.com/arush-sal/ksearch/releases/download/{{ .TagName }}/ksearch_darwin_amd64.tar.gz" .TagName }}
+      bin: ksearch
+    - selector:
+        matchLabels:
+          os: darwin
+          arch: arm64
+      {{addURIAndSha "https://github.com/arush-sal/ksearch/releases/download/{{ .TagName }}/ksearch_darwin_arm64.tar.gz" .TagName }}
+      bin: ksearch
+    - selector:
+        matchLabels:
+          os: windows
+          arch: amd64
+      {{addURIAndSha "https://github.com/arush-sal/ksearch/releases/download/{{ .TagName }}/ksearch_windows_amd64.zip" .TagName }}
+      bin: ksearch.exe
