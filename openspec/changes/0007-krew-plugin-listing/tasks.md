@@ -65,10 +65,15 @@ The `pluginName()` function detects the invocation context at runtime.
   - Verify `metadata.name: ksearch`
   - Verify all platform entries have `uri`, `sha256`, `bin`
   - Verify `bin: ksearch` (non-windows) and `bin: ksearch.exe` (windows)
+- [ ] Create a local linux/amd64 validation archive from `dist/ksearch_linux_amd64_v1/ksearch`
+  plus `LICENSE`, packaged as a `.tar.gz`
+- [ ] Update the linux/amd64 `sha256` in `dist/krew/ksearch.yaml` to match the
+  local validation archive. `kubectl krew install --archive=...` still validates
+  the platform checksum from the manifest.
 - [ ] Test local install (requires krew installed):
   ```bash
   kubectl krew install --manifest=dist/krew/ksearch.yaml \
-    --archive=dist/ksearch_linux_amd64.tar.gz
+    --archive=/tmp/ksearch_local_linux_amd64.tar.gz
   kubectl ksearch --help
   kubectl ksearch --version
   kubectl krew uninstall ksearch
@@ -112,7 +117,8 @@ The `pluginName()` function detects the invocation context at runtime.
 - [ ] `./ksearch --version` — prints injected version
 - [ ] `goreleaser release --snapshot --clean` — succeeds, manifest generated
 - [ ] `cat dist/krew/ksearch.yaml` — `bin: ksearch` (not `kubectl-ksearch`)
-- [ ] `kubectl krew install --manifest=dist/krew/ksearch.yaml --archive=dist/ksearch_linux_amd64.tar.gz` — installs cleanly
+- [ ] local linux/amd64 test archive checksum is copied into `dist/krew/ksearch.yaml`
+- [ ] `kubectl krew install --manifest=dist/krew/ksearch.yaml --archive=/tmp/ksearch_local_linux_amd64.tar.gz` — installs cleanly
 - [ ] `kubectl ksearch --help` — shows `kubectl ksearch` (krew symlink detected)
 - [ ] `kubectl ksearch -n kube-system` — produces output
 - [ ] `kubectl krew uninstall ksearch` — removes cleanly

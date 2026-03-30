@@ -154,20 +154,43 @@ goreleaser release --snapshot --clean
 # 2. Find the generated manifest
 cat dist/krew/ksearch.yaml
 
-# 3. Test installation with the local archive
-kubectl krew install --manifest=dist/krew/ksearch.yaml \
-  --archive=dist/ksearch_linux_amd64.tar.gz
+# 3. Create a local linux/amd64 test archive from the built binary
+mkdir -p /tmp/ksearch-local-archive
+cp dist/ksearch_linux_amd64_v1/ksearch /tmp/ksearch-local-archive/ksearch
+cp LICENSE /tmp/ksearch-local-archive/LICENSE
+tar -C /tmp/ksearch-local-archive -czf /tmp/ksearch_local_linux_amd64.tar.gz \
+  ksearch LICENSE
 
-# 4. Verify
+# 4. Update the linux/amd64 sha256 in dist/krew/ksearch.yaml to match the
+#    local test archive. Krew still validates the manifest checksum even when
+#    --archive overrides the download URI.
+sha256sum /tmp/ksearch_local_linux_amd64.tar.gz
+
+# 5. Test installation with the local archive
+kubectl krew install --manifest=dist/krew/ksearch.yaml \
+  --archive=/tmp/ksearch_local_linux_amd64.tar.gz
+
+# 6. Verify
 kubectl ksearch --help
 kubectl ksearch -n default
 
-# 5. Cross-platform validation (simulate darwin/arm64 on linux)
+# 7. Cleanup
+kubectl krew uninstall ksearch
+```
+
+For local install tests, the manifest checksum must match the custom archive.
+`--archive` replaces the download source, but Krew still verifies the selected
+platform entry's `sha256` from the manifest before unpacking.
+
+Cross-platform validation can still use the generated release archives directly:
+
+```bash
+# 8. Cross-platform validation (simulate darwin/arm64 on linux)
 KREW_OS=darwin KREW_ARCH=arm64 kubectl krew install \
   --manifest=dist/krew/ksearch.yaml \
   --archive=dist/ksearch_darwin_arm64.tar.gz
 
-# 6. Cleanup
+# 9. Cleanup
 kubectl krew uninstall ksearch
 ```
 
