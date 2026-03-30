@@ -58,10 +58,6 @@ Pending changes are tracked under `openspec/changes/`. Completed and merged chan
 are archived in `openspec/changes/done/`. Only directories directly under
 `openspec/changes/` (not inside `done/`) represent work still to be done.
 
-**Currently pending:**
+**Currently pending:** none
 
-| Change | Summary |
-|--------|---------|
-| `0007-krew-plugin-listing` | Rename binary to `kubectl-ksearch`, add krew-release-bot, refine GoReleaser krew config, submit to `kubernetes-sigs/krew-index` |
-
-**Completed (in `openspec/changes/done/`):** 0001 (dep upgrade), 0002 (concurrent printing), 0003 (caching), 0004 (tests), 0005 (CI/CD).
+**Completed (in `openspec/changes/done/`):** 0001 (dep upgrade), 0002 (concurrent printing), 0003 (caching), 0004 (tests), 0005 (CI/CD), 0006 (dynamic resource discovery), 0007 (krew plugin listing).
